@@ -26,7 +26,7 @@
     <developer>
       <id>sparkplusplus</id>
       <name>SparkPlusPlus Team</name>
-      <email>sparkplusplus@github.com</email>
+      <email>sparkplusplusframework@gmail.com</email>
       <url>https://github.com/sparkplusplus</url>
     </developer>
   </developers>
@@ -34,7 +34,7 @@
   <scm>
     <connection>scm:git:git://github.com/sparkplusplus/sparkplusplus.git</connection>
     <developerConnection>scm:git:ssh://github.com:sparkplusplus/sparkplusplus.git</developerConnection>
-    <url>https://github.com/sparkplusplus/sparkplusplus/tree/main</url>
+    <url>https://github.com/sparkplusplus/sparkplusplus</url>
   </scm>
 
   <distributionManagement>

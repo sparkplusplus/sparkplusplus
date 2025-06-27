@@ -31,12 +31,19 @@
     </developer>
   </developers>
 
+  <issueManagement>
+    <system>github</system>
+    <url>https://github.com/sparkplusplus/sparkplusplus/issues</url>
+  </issueManagement>
+
   <scm>
     <connection>scm:git:git://github.com/sparkplusplus/sparkplusplus.git</connection>
-    <developerConnection>scm:git:ssh://github.com:sparkplusplus/sparkplusplus.git</developerConnection>
+    <developerConnection>scm:git:ssh://github.com:sparkplusplus/sparkplusplus.git
+    </developerConnection>
     <url>https://github.com/sparkplusplus/sparkplusplus</url>
   </scm>
 
+  <!--
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
@@ -47,11 +54,19 @@
       <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
     </repository>
   </distributionManagement>
+  -->
 
   <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>17</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <maven.compiler.release>${java.version}</maven.compiler.release>
+    <junit.version>5.10.2</junit.version>
+
+    <sonar.organization>teamlead</sonar.organization>
+    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+    <sonar.projectKey>teamlead_java-maven-sonatype-starter</sonar.projectKey>
 
     <!-- Default Scala version -->
     <scala.version>2.12.17</scala.version>
@@ -86,6 +101,111 @@
         <scala.binary.version>2.13</scala.binary.version>
       </properties>
     </profile>
+
+    <!--    deploy -->
+    <profile>
+      <!-- required, used in .github/workflows/sonatype-publish.yml -->
+      <id>sonatypeDeploy</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.7.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <tokenAuth>true</tokenAuth>
+              <autoPublish>true</autoPublish>
+              <waitUntil>published</waitUntil>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.11.2</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- optional: used in .github/workflows/build-and-analyze.yml -->
+      <id>coverageReport</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.2.5</version>
+          </plugin>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <version>0.8.13</version>
+            <executions>
+              <execution>
+                <id>prepare-agent</id>
+                <goals>
+                  <goal>prepare-agent</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>report</id>
+                <goals>
+                  <goal>report</goal>
+                </goals>
+                <configuration>
+                  <formats>
+                    <format>XML</format>
+                  </formats>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 
   <dependencies>
@@ -138,136 +258,16 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
-
     <plugins>
-      <!-- Scala Maven Plugin -->
-      <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-        <version>4.8.1</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <scalaVersion>${scala.version}</scalaVersion>
-          <args>
-            <arg>-deprecation</arg>
-            <arg>-feature</arg>
-          </args>
-        </configuration>
-      </plugin>
-
-      <!-- Surefire Plugin for Tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M9</version>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version> <!-- Use latest stable -->
         <configuration>
-          <skipTests>true</skipTests>
+          <source>${maven.compiler.source}</source> <!-- or 11, 17, etc. -->
+          <target>${maven.compiler.target}</target>
         </configuration>
       </plugin>
-
-      <!-- ScalaTest Plugin -->
-      <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
-        <version>2.2.0</version>
-        <configuration>
-          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-          <junitxml>.</junitxml>
-          <filereports>TestSuiteReport.txt</filereports>
-          <argLine>--add-opens=java.base/java.lang=ALL-UNNAMED
-            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-            --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED
-            --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-            --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-            --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
-            --add-opens=java.base/sun.security.action=ALL-UNNAMED
-            --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-            --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
-          </argLine>
-        </configuration>
-        <executions>
-          <execution>
-            <id>test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Source Plugin -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Maven Javadoc Plugin -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.4.1</version>
-        <executions>
-          <execution>
-            <id>attach-javadocs</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <doclint>none</doclint>
-          <failOnError>false</failOnError>
-        </configuration>
-      </plugin>
-
-      <!-- Maven GPG Plugin -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-gpg-plugin</artifactId>
-        <version>3.0.1</version>
-        <executions>
-          <execution>
-            <id>sign-artifacts</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>sign</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Nexus Staging Plugin -->
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.13</version>
-        <extensions>true</extensions>
-        <configuration>
-          <serverId>ossrh</serverId>
-          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-          <autoReleaseAfterClose>true</autoReleaseAfterClose>
-        </configuration>
-      </plugin>
-
     </plugins>
   </build>
 </project>

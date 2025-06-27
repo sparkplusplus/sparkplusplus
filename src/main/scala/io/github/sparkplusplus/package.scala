@@ -1,8 +1,8 @@
-package io.github.sparkplusplus
+package io.github
 
 import org.apache.spark.sql.DataFrame
 
-package object sparkutils {
+package object sparkplusplus {
 
   /**
    * Implicit class to add utility methods directly to DataFrame

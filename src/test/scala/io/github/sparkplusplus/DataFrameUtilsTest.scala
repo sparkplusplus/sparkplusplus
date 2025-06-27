@@ -1,11 +1,10 @@
 package io.github.sparkplusplus
 
-import io.github.sparkplusplus.sparkutils.DataFrameUtils
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {≤
+class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
 
   var spark: SparkSession = _
 

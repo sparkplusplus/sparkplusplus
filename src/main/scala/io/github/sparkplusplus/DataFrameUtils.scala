@@ -1,4 +1,4 @@
-package io.github.sparkplusplus.sparkutils
+package io.github.sparkplusplus
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._

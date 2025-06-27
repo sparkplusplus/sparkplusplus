@@ -11,7 +11,7 @@
   <packaging>jar</packaging>
 
   <name>SparkPlusPlus</name>
-  <description>SparkPlusPlus Framework - Utility library for Apache Spark with DataFrame operations</description>
+  <description>SparkPlusPlus Framework - Utility library for Apache Spark</description>
   <url>https://github.com/sparkplusplus/sparkplusplus</url>
 
   <licenses>
@@ -38,9 +38,13 @@
   </scm>
 
   <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
     <repository>
-      <id>central</id>
-      <url>https://central.sonatype.com/api/v1/publisher/deployments/upload/</url>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
     </repository>
   </distributionManagement>
 
@@ -216,20 +220,54 @@
         </executions>
       </plugin>
 
-      <!-- Scaladoc Plugin -->
+      <!-- Maven Javadoc Plugin -->
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-        <version>4.8.1</version>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.4.1</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
             <goals>
-              <goal>doc-jar</goal>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <doclint>none</doclint>
+          <failOnError>false</failOnError>
+        </configuration>
+      </plugin>
+
+      <!-- Maven GPG Plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>3.0.1</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
+
+      <!-- Nexus Staging Plugin -->
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.13</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>ossrh</serverId>
+          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 </project>

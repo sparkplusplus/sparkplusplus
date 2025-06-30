@@ -1,54 +1,36 @@
-name: Maven Library Publish
-
+name: Publish package to the Maven Central Repository
 on:
-  release:
-    types: [ created ]
-#  push:
+#  release:
+#    types: [created]
+  push:
 #    branches: [ "main" ]
-
+    tags:
+      - '*'
 jobs:
   publish:
-
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Debug GPG import
-        run: |
-          echo "$MAVEN_GPG_KEY" | gpg --batch --import
-        env:
-          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-
-      - name: Verify GPG key is usable
-        run: |
-          echo "test" | gpg --batch --yes --pinentry-mode loopback --passphrase "$MAVEN_GPG_PASSPHRASE" -u D48C6B075DB09770 --clearsign
-        env:
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Set up JDK 17 for deploy to Sonatype
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
         with:
-          distribution: 'adopt'
-          java-version: 17
+          java-version: '21'
+          distribution: 'temurin'
           server-id: central
           server-username: MAVEN_USERNAME
-          server-password: MAVEN_CENTRAL_TOKEN
-          gpg-private-key: MAVEN_GPG_KEY
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
+      - name: Set version
+        run: mvn versions:set -DnewVersion=${{ github.event.release.tag_name }}
 
-      - name: Prepare Maven environnement with Java 17 for deployment to Sonatype
-        run: export MAVEN_OPTS="--add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED"
+      - name: Build and test
+        run: mvn -B clean verify
 
-
-      - name: Publish to Apache Maven Central
-        run: mvn deploy -PsonatypeDeploy
+      - name: Publish package
+        run: mvn -P sonatypeDeploy --batch-mode deploy -DskipTests
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          MAVEN_CENTRAL_TOKEN: ${{ secrets.SONATYPE_PASSWORD }}
+          MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          # this is actual key ( not keyname as in settings.xml, this will start like -----BEGIN PGP PRIVATE KEY BLOCK-----, see PUBLISHING.md for more
-          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}

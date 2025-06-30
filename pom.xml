@@ -7,11 +7,11 @@
 
   <groupId>io.github.sparkplusplus</groupId>
   <artifactId>sparkplusplus</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>SparkPlusPlus</name>
-  <description>SparkPlusPlus Framework - Utility library for Apache Spark</description>
+  <description>SparkPlusPlus Framework Utility library for Apache Spark</description>
   <url>https://github.com/sparkplusplus/sparkplusplus</url>
 
   <licenses>
@@ -181,7 +181,7 @@
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.8.13</version>
+            <version>0.8.12</version>
             <executions>
               <execution>
                 <id>prepare-agent</id>

@@ -7,7 +7,7 @@
 
   <groupId>io.github.sparkplusplus</groupId>
   <artifactId>sparkplusplus</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.1</version>
   <packaging>jar</packaging>
 
   <name>SparkPlusPlus</name>
@@ -69,7 +69,7 @@
     <sonar.projectKey>teamlead_java-maven-sonatype-starter</sonar.projectKey>
 
     <!-- Default Scala version -->
-    <scala.version>2.12.17</scala.version>
+    <scala.version>2.12.18</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
 
     <!-- Spark version -->
@@ -88,7 +88,7 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-        <scala.version>2.12.17</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
     </profile>

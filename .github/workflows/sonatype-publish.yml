@@ -22,7 +22,7 @@ jobs:
 
       - name: Verify GPG key is usable
         run: |
-          echo "test" | gpg --batch --yes --passphrase "$MAVEN_GPG_PASSPHRASE" -u D48C6B075DB09770 --clearsign
+          echo "test" | gpg --batch --yes --pinentry-mode loopback --passphrase "$MAVEN_GPG_PASSPHRASE" -u D48C6B075DB09770 --clearsign
         env:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 

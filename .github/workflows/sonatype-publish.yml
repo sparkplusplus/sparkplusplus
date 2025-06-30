@@ -37,4 +37,5 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.SONATYPE_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY_NAME }}
+          # this is actual key ( not keyname as in settings.xml, this will start like -----BEGIN PGP PRIVATE KEY BLOCK-----, see PUBLISHING.md for more
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}

@@ -31,6 +31,12 @@ jobs:
       - name: Prepare Maven environnement with Java 17 for deployment to Sonatype
         run: export MAVEN_OPTS="--add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED"
 
+      - name: Debug GPG import
+        run: |
+          echo "$MAVEN_GPG_KEY" | gpg --batch --import
+        env:
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
       - name: Publish to Apache Maven Central
         run: mvn deploy -PsonatypeDeploy
         env:

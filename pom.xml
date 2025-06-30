@@ -38,7 +38,7 @@
     <developerConnection>scm:git:ssh://github.com:sparkplusplus/sparkplusplus.git
     </developerConnection>
     <url>https://github.com/sparkplusplus/sparkplusplus</url>
-    <tag>sparkplusplus-0.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <!--
@@ -266,6 +266,15 @@
           <target>${maven.compiler.target}</target>
         </configuration>
       </plugin>
+      <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-release-plugin</artifactId>
+      <version>3.1.1</version>
+      <configuration>
+        <pushChanges>true</pushChanges>
+        <scmCommentPrefix>[release] </scmCommentPrefix>
+      </configuration>
+    </plugin>
     </plugins>
   </build>
 </project>

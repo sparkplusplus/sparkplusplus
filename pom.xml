@@ -69,7 +69,7 @@
     <sonar.projectKey>teamlead_java-maven-sonatype-starter</sonar.projectKey>
 
     <!-- Default Scala version -->
-    <scala.version>2.12.18</scala.version>
+    <scala.version>2.13.16</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
 
     <!-- Spark version -->

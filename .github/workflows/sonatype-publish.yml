@@ -20,6 +20,12 @@ jobs:
         env:
           MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
+      - name: Verify GPG key is usable
+        run: |
+          echo "test" | gpg --batch --yes --passphrase "$MAVEN_GPG_PASSPHRASE" -u D48C6B075DB09770 --clearsign
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Set up JDK 17 for deploy to Sonatype
         uses: actions/setup-java@v3
         with:

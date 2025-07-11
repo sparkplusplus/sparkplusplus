@@ -95,3 +95,5 @@ Note - this only works for SNAPSHOT versions
 * Sonatype version deployments are configured using GithubAction `sonatype-publish.yml`
 * this is triggered on tags, so create tags and push them, it will deploy the package automatically.
 * we can check all deployed versions here—https://central.sonatype.com/artifact/io.github.sparkplusplus/sparkplusplus/versions
+* using following versioning
+  * SNAPSHOT -> alphaX -> betaX -> X.Y.Z

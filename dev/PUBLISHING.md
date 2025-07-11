@@ -69,14 +69,29 @@ Copy the entire output and add to GITHUB Action secret `GPG_PRIVATE_KEY`
 </settings> 
 ```
 
-* we can run this command locally to do the deployment
+* we can run this command locally to do the SNAPSHOT deployment
 
 ```Bash
  mvn clean deploy -Pgpg-key1 -PsonatypeDeploy
  # add -X if you want to test see debug logs
 ```
+Or run
+```bash
+make deploy
+```
+
+### Checking Snapshots version after deployment
+* to check if a snapshot version was deployed properly, we can use 
+
+```bash
+make check -v=0.0.3-SNAPSHOT
+```
+this will not through error if a version is found.
+Note - this only works for SNAPSHOT versions
 
 * we can check our deployment status [here](https://central.sonatype.com/publishing/deployments) 
 
 ### GitHub Action Publishing
-
+* Sonatype version deployments are configured using GithubAction `sonatype-publish.yml`
+* this is triggered on tags, so create tags and push them, it will deploy the package automatically.
+* we can check all deployed versions here—https://central.sonatype.com/artifact/io.github.sparkplusplus/sparkplusplus/versions

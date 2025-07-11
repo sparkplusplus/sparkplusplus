@@ -77,7 +77,7 @@ Copy the entire output and add to GITHUB Action secret `GPG_PRIVATE_KEY`
 ```
 Or run
 ```bash
-make deploy
+make snapshot
 ```
 
 ### Checking Snapshots version after deployment

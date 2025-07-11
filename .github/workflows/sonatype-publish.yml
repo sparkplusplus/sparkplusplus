@@ -9,6 +9,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scala-profile: [scala-2.12, scala-2.13]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Maven Central Repository
@@ -25,11 +28,11 @@ jobs:
       - name: Set version
         run: mvn versions:set -DnewVersion=${{ github.ref_name }}
 
-      - name: Build and test
-        run: mvn -B clean verify
+      - name: Build and test with ${{ matrix.scala-profile }}
+        run: mvn -B clean verify -P${{ matrix.scala-profile }}
 
-      - name: Publish package
-        run: mvn -P sonatypeDeploy --batch-mode deploy -DskipTests
+      - name: Publish package for ${{ matrix.scala-profile }}
+        run: mvn -P sonatypeDeploy -P${{ matrix.scala-profile }} --batch-mode deploy -DskipTests
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}

@@ -11,6 +11,7 @@
 ```bash
 gpg --full-generate-key 
 # choose RSA and 4096, we can skip expiry
+# put in email/name etc and give passphrase eg. username of macOS etc.
 ```
 * list secrets
 
@@ -30,17 +31,18 @@ gpg --list-secret-keys --keyid-format=long
 *  ✅ Step 2: Export your ASCII-armored private key
 
 ```Bash
-gpg --armor --export-secret-keys ABCD1234EF567890 > key.txt
+gpg --armor --export-secret-keys 0A353F92D4BB09A1 > key.txt
 
 # sample output file have content of key.txt like this
 -----BEGIN PGP PRIVATE KEY BLOCK-----
 ...
 -----END PGP PRIVATE KEY BLOCK-----
 
-Copy the entire output and add to GITHUB Action secret `GPG_PRIVATE_KEY`
+Copy the entire output and add to GITHUB Action secret `GPG_PRIVATE_KEY` along with `GPG_PASSPHRASE`
+`SONATYPE_PASSWORD` and `SONATYPE_USERNAME`
 ```
 
-* this is on what our settings.xml will look like
+* this is on what our settings.xml will look like, we will get username and password when we generate a new token in central sonatype
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -61,8 +63,8 @@ Copy the entire output and add to GITHUB Action secret `GPG_PRIVATE_KEY`
   <profile>
     <id>gpg-key1</id>
     <properties>
-        <gpg.keyname>GPGKEY</gpg.keyname>
-        <gpg.passphrase>PASSPHRASE</gpg.passphrase>
+        <gpg.keyname>$GPGKEY</gpg.keyname>
+        <gpg.passphrase>$PASSPHRASE</gpg.passphrase>
     </properties>
   </profile>
 </profiles>

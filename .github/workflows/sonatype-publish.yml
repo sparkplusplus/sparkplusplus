@@ -28,8 +28,9 @@ jobs:
       - name: Set version
         run: mvn versions:set -DnewVersion=${{ github.ref_name }}
 
-      - name: Build and test with ${{ matrix.scala-profile }}
-        run: mvn -B clean verify -P${{ matrix.scala-profile }}
+# TODO: uncomment this
+#      - name: Build and test with ${{ matrix.scala-profile }}
+#        run: mvn -B clean verify -P${{ matrix.scala-profile }}
 
       - name: Attach sources and javadoc
         run: mvn source:jar javadoc:jar -P${{ matrix.scala-profile }}

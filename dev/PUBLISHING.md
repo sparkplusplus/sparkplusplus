@@ -1,6 +1,6 @@
 ## Publishing to Sonatype
 
-* follow https://github.com/teamlead/java-maven-sonatype-starter/tree/master?tab=readme-ov-file
+* follow ./SONATYPE_GUIDE.md ( if needed )
 
 ### Local Publishing for testing
 * we need setup of GPG keys in our local and setup of `gpg-key1` profile in our `.m2/settings.xml`
@@ -25,6 +25,7 @@ gpg --list-secret-keys --keyid-format=long
 
 
 ```
+* after generating this key, we need to upload this to a GPG server which can be done by using 'GPG key chain app'
 * Your key ID is ABCD1234EF567890, this will be used in settings.xml for profile `gpg-key1`
  we can also see this using `gpg --list-secret-keys --keyid-format=short`
 

@@ -8,7 +8,10 @@ test213:
 
 test: test212 test213
 
-install: install-scala-2.12 install-scala-2.13
+install:
+	mvn clean install -Pscala-2.12
+    # not running cleanup so both jars are available
+	mvn install -Pscala-2.13
 
 install-scala-2.12:
 	mvn clean install -Pscala-2.12
@@ -16,15 +19,13 @@ install-scala-2.12:
 install-scala-2.13:
 	mvn clean install -Pscala-2.13
 
-snapshot:
-	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12
-	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13
+snapshot: snapshot212 snapshot213
 
 snapshot212:
-	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12
+	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12 -Dgpg.skip=false source:jar javadoc:jar
 
 snapshot213:
-	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13
+	mvn clean deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13 -Dgpg.skip=false source:jar javadoc:jar
 
 check: check212 check213
 

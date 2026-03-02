@@ -29,21 +29,22 @@ snapshot213:
 
 check: check212 check213
 
+# pass version like make check212 v=0.0.1
 check212:
-	@echo "Checking version sparkplusplus_2.12:$(v)"
+	@echo "Checking version sparkplusplus_2.12:$(v)-SNAPSHOT"
 	@echo "================================================="
 	@sleep 2
 	mvn dependency:get \
 	  -DgroupId=io.github.sparkplusplus \
 	  -DartifactId=sparkplusplus_2.12 \
-	  -Dversion=$(v) \
+	  -Dversion=$(v)-SNAPSHOT \
 	  -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/
 check213:
-	@echo "Checking version sparkplusplus_2.13:$(v)"
+	@echo "Checking version sparkplusplus_2.13:$(v)-SNAPSHOT"
 	@echo "====================================================="
 	@sleep 2
 	mvn dependency:get \
 	  -DgroupId=io.github.sparkplusplus \
-	  -DartifactId=sparkplusplus_2.13 \
+	  -DartifactId=sparkplusplus_2.13-SNAPSHOT \
 	  -Dversion=$(v) \
 	  -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/

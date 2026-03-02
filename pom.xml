@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.github.sparkplusplus</groupId>
-  <artifactId>sparkplusplus</artifactId>
+  <artifactId>sparkplusplus_${scala.binary.version}</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
@@ -256,7 +256,7 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
-    <finalName>${project.artifactId}_${scala.binary.version}-${project.version}</finalName>
+    <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
       <!-- Scala Maven Plugin -->
       <plugin>

@@ -8,7 +8,11 @@
   <packaging>jar</packaging>
 
   <name>SparkPlusPlus</name>
-  <description>SparkPlusPlus Framework Utility library for Apache Spark</description>
+  <description>
+    SparkPlusPlus Framework Utility library for Apache Spark
+    DEPRECATED: Use sparkplusplus_2.12 or sparkplusplus_2.13 instead.
+    This artifact will no longer receive updates.
+  </description>
   <url>https://github.com/sparkplusplus/sparkplusplus</url>
 
   <licenses>
@@ -40,18 +44,15 @@
     <tag>sparkplusplus-0.0.1</tag>
   </scm>
 
-  <!--
   <distributionManagement>
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
+    <relocation>
+      <groupId>io.github.sparkplusplus</groupId>
+      <artifactId>sparkplusplus_2.12</artifactId>
+      <message>
+        Artifact renamed to sparkplusplus_2.12 and sparkplusplus_2.13
+      </message>
+    </relocation>
   </distributionManagement>
-  -->
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

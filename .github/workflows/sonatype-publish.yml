@@ -37,9 +37,8 @@ jobs:
       - name: Set version
         run: mvn versions:set -DnewVersion=${{ github.ref_name }}
 
-# TODO: uncomment this
-#      - name: Build and test with ${{ matrix.scala-profile }}
-#        run: mvn -B clean verify -P${{ matrix.scala-profile }}
+      - name: Build and test with ${{ matrix.scala-profile }}
+        run: mvn -B clean verify -P${{ matrix.scala-profile }}
 
       - name: Publish package for ${{ matrix.scala-profile }}
         run: mvn -P sonatypeDeploy -P${{ matrix.scala-profile }} --batch-mode deploy -DskipTests

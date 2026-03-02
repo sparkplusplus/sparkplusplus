@@ -16,8 +16,20 @@ install:
 
 snapshot:
 	mvn clean
-	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12 -Dgpg.skip=false source:jar javadoc:jar
-	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13 -Dgpg.skip=false source:jar javadoc:jar
+	$(MAKE) snapshot212
+	$(MAKE) snapshot213
+
+snapshot212:
+	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12 -Dgpg.skip=false
+
+snapshot213:
+	@set -e; \
+	cp pom.xml pom.xml.bak; \
+	trap 'mv pom.xml.bak pom.xml' EXIT INT TERM; \
+	sed 's|<artifactId>sparkplusplus_2.12</artifactId>|<artifactId>sparkplusplus_2.13</artifactId>|' pom.xml.bak > pom.xml; \
+	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13 -Dgpg.skip=false; \
+	mv pom.xml.bak pom.xml; \
+	trap - EXIT INT TERM
 
 check: check212 check213
 
@@ -37,6 +49,6 @@ check213:
 	@sleep 2
 	mvn dependency:get \
 	  -DgroupId=io.github.sparkplusplus \
-	  -DartifactId=sparkplusplus_2.13-SNAPSHOT \
-	  -Dversion=$(v) \
+	  -DartifactId=sparkplusplus_2.13 \
+	  -Dversion=$(v)-SNAPSHOT \
 	  -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/

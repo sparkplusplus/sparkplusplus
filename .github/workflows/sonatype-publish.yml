@@ -11,9 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        scala-profile: [scala-2.12, scala-2.13]
+        include:
+          - scala-profile: scala-2.12
+            artifact-id: sparkplusplus_2.12
+          - scala-profile: scala-2.13
+            artifact-id: sparkplusplus_2.13
     steps:
       - uses: actions/checkout@v4
+      - name: Set artifactId for ${{ matrix.scala-profile }}
+        run: |
+          sed -i "s|<artifactId>sparkplusplus_2.12</artifactId>|<artifactId>${{ matrix.artifact-id }}</artifactId>|" pom.xml
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
         with:

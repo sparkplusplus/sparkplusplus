@@ -18,6 +18,8 @@ jobs:
             artifact-id: sparkplusplus_2.13
     steps:
       - uses: actions/checkout@v4
+      # Keep artifactId constant in pom.xml by default (2.12), then switch per matrix job.
+      # This avoids expression-based artifactId issues that Central can reject.
       - name: Set artifactId for ${{ matrix.scala-profile }}
         run: |
           sed -i "s|<artifactId>sparkplusplus_2.12</artifactId>|<artifactId>${{ matrix.artifact-id }}</artifactId>|" pom.xml

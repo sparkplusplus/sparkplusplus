@@ -22,6 +22,8 @@ snapshot:
 snapshot212:
 	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12 -Dgpg.skip=false
 
+# Use a temporary artifactId switch for 2.13 publishing.
+# Central validates filenames against POM coordinates, so publish with a concrete 2.13 artifactId.
 snapshot213:
 	@set -e; \
 	cp pom.xml pom.xml.bak; \

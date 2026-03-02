@@ -76,6 +76,11 @@ mvn clean package -Pscala-2.12
 mvn clean package -Pscala-2.13
 ```
 
+### Publishing Note
+
+Publishing uses concrete Maven coordinates per Scala binary version (`sparkplusplus_2.12` and `sparkplusplus_2.13`).
+The 2.13 publish path temporarily rewrites `<artifactId>` during deploy to keep Sonatype Central filename validation consistent.
+
 ## Usage
 
 ### Using Object Methods

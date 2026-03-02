@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.github.sparkplusplus</groupId>
-  <artifactId>sparkplusplus_${scala.binary.version}</artifactId>
+  <artifactId>sparkplusplus_2.12</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
@@ -131,14 +131,15 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.11.2</version>
+            <groupId>net.alchim31.maven</groupId>
+            <artifactId>scala-maven-plugin</artifactId>
+            <version>4.8.1</version>
             <executions>
               <execution>
-                <id>attach-javadocs</id>
+                <id>attach-scaladocs</id>
+                <phase>verify</phase>
                 <goals>
-                  <goal>jar</goal>
+                  <goal>doc-jar</goal>
                 </goals>
               </execution>
             </executions>
@@ -255,6 +256,7 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
       <!-- Scala Maven Plugin -->
       <plugin>

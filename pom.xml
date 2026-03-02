@@ -73,7 +73,7 @@
     <spark.version>3.4.1</spark.version>
 
     <!-- Test dependencies -->
-    <scalatest.version>3.2.15</scalatest.version>
+    <scalatest.version>3.2.19</scalatest.version>
     <junit.version>4.13.2</junit.version>
   </properties>
 

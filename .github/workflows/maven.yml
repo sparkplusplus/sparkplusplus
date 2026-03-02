@@ -17,6 +17,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scala-profile: [scala-2.12, scala-2.13]
 
     steps:
     - uses: actions/checkout@v4
@@ -26,5 +29,5 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: maven
-    - name: Build with Maven
-      run: mvn -B package
+    - name: Build and test with Maven (${{ matrix.scala-profile }})
+      run: mvn -B clean verify -P${{ matrix.scala-profile }}

@@ -147,7 +147,16 @@ To work on the docs locally:
 ```bash
 cd website
 npm install
-npm run start
+npm run dev
+```
+
+The docs dev server supports hot reload, so page and markdown changes should refresh automatically.
+
+If filesystem watching is unreliable in your environment, use:
+
+```bash
+cd website
+npm run dev:poll
 ```
 
 To create a production build:

@@ -33,6 +33,29 @@ const config = {
     ],
   ],
 
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'usecases',
+        path: 'use-cases-docs',
+        routeBasePath: 'use-cases',
+        sidebarPath: require.resolve('./usecaseSidebars.js'),
+        editUrl: 'https://github.com/sparkplusplus/sparkplusplus/tree/main/website/',
+      },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'contributing',
+        path: 'contributing-docs',
+        routeBasePath: 'contributing-guide',
+        sidebarPath: require.resolve('./contributingSidebars.js'),
+        editUrl: 'https://github.com/sparkplusplus/sparkplusplus/tree/main/website/',
+      },
+    ],
+  ],
+
   themeConfig: {
     image: 'img/social-card.svg',
     navbar: {
@@ -49,6 +72,20 @@ const config = {
           label: 'Docs',
         },
         {
+          type: 'docSidebar',
+          sidebarId: 'useCases',
+          docsPluginId: 'usecases',
+          label: 'Use Cases',
+          position: 'left',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'contributingGuide',
+          docsPluginId: 'contributing',
+          label: 'Contributing Guide',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/sparkplusplus/sparkplusplus',
           label: 'GitHub',
           position: 'right',
@@ -63,6 +100,8 @@ const config = {
           items: [
             { label: 'Getting Started', to: '/docs/getting-started' },
             { label: 'SparkApp Guide', to: '/docs/sparkapp' },
+            { label: 'Contributing Guide', to: '/contributing-guide/' },
+            { label: 'Use Cases', to: '/use-cases/' },
           ],
         },
         {

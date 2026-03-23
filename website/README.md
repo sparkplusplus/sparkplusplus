@@ -6,7 +6,15 @@ This directory contains the Docusaurus source for the public SparkPlusPlus docum
 
 ```bash
 npm install
-npm run start
+npm run dev
+```
+
+`npm run dev` runs the Docusaurus development server with hot reload enabled.
+
+If file changes are not being detected on your machine, use polling mode:
+
+```bash
+npm run dev:poll
 ```
 
 ## Production Build

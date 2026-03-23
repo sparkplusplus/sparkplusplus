@@ -8,7 +8,6 @@ const sidebars = {
     'runtime',
     'dataframe-utils',
     'testing',
-    'publishing',
   ],
 };
 

@@ -3,7 +3,7 @@ package io.github.sparkplusplus.app
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
-import SparkAppTest.{DefaultsConfig, NestedConfig, SampleConfig}
+import SparkAppTest.{DefaultsConfig, NestedConfig, SampleConfig, SparkConfigCaseClass}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -99,6 +99,30 @@ class SparkAppTest extends AnyFunSuite {
     assert(config == DefaultsConfig(SampleConfig("daily-orders", 8), List("analytics"), retryCount = 5, dryRun = false))
   }
 
+  test("YamlConfigLoader supports sparkConfig maps") {
+    val path = writeTempFile(
+      """name: daily-orders
+        |partitions: 8
+        |sparkConfig:
+        |  spark.sql.shuffle.partitions: "16"
+        |  spark.sql.session.timeZone: UTC
+        |""".stripMargin
+    )
+
+    val config = YamlConfigLoader.load(path, classOf[SparkConfigCaseClass])
+
+    assert(
+      config == SparkConfigCaseClass(
+        "daily-orders",
+        8,
+        Map(
+          "spark.sql.shuffle.partitions" -> "16",
+          "spark.sql.session.timeZone" -> "UTC"
+        )
+      )
+    )
+  }
+
   test("main validates config before creating spark") {
     val lifecycle = new RecordingLifecycle
     val app = new RecordingSparkApp(
@@ -149,6 +173,30 @@ class SparkAppTest extends AnyFunSuite {
     assert(error.getMessage == "boom")
     assert(lifecycle.stopCalled)
     assert(lifecycle.stopFailure.exists(_.getMessage == "boom"))
+  }
+
+  test("main applies sparkConfig from yaml-backed config before app customization") {
+    val lifecycle = new RecordingLifecycle
+    val app = new RecordingSparkApp(
+      config = SampleConfig(
+        "orders",
+        4,
+        Map(
+          "spark.sql.shuffle.partitions" -> "64",
+          "spark.sql.session.timeZone" -> "UTC"
+        )
+      ),
+      lifecycle = lifecycle
+    )
+
+    app.main(Array("--config", "/tmp/app.yaml"))
+
+    assert(
+      lifecycle.appliedSparkConfig == Map(
+        "spark.sql.shuffle.partitions" -> "64",
+        "spark.sql.session.timeZone" -> "UTC"
+      )
+    )
   }
 
   private def writeTempFile(contents: String): Path = {
@@ -206,15 +254,18 @@ class SparkAppTest extends AnyFunSuite {
     var builderWasCustomized = false
     var stopFailure: Option[Throwable] = None
     var recordedAppName: Option[String] = None
+    var appliedSparkConfig: Map[String, String] = Map.empty
 
     override def create(
       appName: String,
       config: SampleConfig,
+      sparkConfig: Map[String, String],
       logger: Logger,
       configureSpark: (SparkSession.Builder, SampleConfig) => SparkSession.Builder
     ): SparkSession = {
       createCalled = true
       recordedAppName = Some(appName)
+      appliedSparkConfig = sparkConfig
       configureSpark(SparkSession.builder(), config)
       null.asInstanceOf[SparkSession]
     }
@@ -227,7 +278,17 @@ class SparkAppTest extends AnyFunSuite {
 }
 
 object SparkAppTest {
-  final case class SampleConfig(name: String, partitions: Int)
+  final case class SampleConfig(
+    name: String,
+    partitions: Int,
+    sparkConfig: Map[String, String] = Map.empty
+  ) extends SparkApp.HasSparkConfig
+
+  final case class SparkConfigCaseClass(
+    name: String,
+    partitions: Int,
+    sparkConfig: Map[String, String]
+  ) extends SparkApp.HasSparkConfig
   final case class NestedConfig(job: SampleConfig, owners: List[String], dryRun: Option[Boolean])
   final case class DefaultsConfig(
     job: SampleConfig,

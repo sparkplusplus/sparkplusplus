@@ -19,6 +19,17 @@ SparkPlusPlus is designed for teams that want a light framework on top of Apache
 3. Point the app at a YAML file with `--config`.
 4. Implement business logic in `run(ctx)`.
 
+## First Real Use Case
+
+A common SparkPlusPlus job looks like this:
+
+- input datasets: `customers` and `orders`
+- output table or files: `customer_orders`
+- target format: Delta
+- goal: join and curate datasets into a cleaner analytics table
+
+If you want a fuller example, see [Use Case Examples](/use-cases/).
+
 ## Minimal Example
 
 ```scala

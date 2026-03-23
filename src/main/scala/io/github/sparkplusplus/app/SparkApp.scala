@@ -22,7 +22,13 @@ abstract class SparkApp[C <: AnyRef] {
 
     val logger = createLogger()
     beforeSparkStart(config, parsedArgs.passthroughArgs, logger)
-    val spark = sparkLifecycle.create(appName, config, logger, configureSpark)
+    val spark = sparkLifecycle.create(
+      appName,
+      config,
+      extractSparkConfig(config),
+      logger,
+      configureSpark
+    )
     val context = AppContext(spark, config, parsedArgs.passthroughArgs, logger)
 
     var runFailure: Throwable = null
@@ -45,6 +51,8 @@ abstract class SparkApp[C <: AnyRef] {
 
   protected def loadConfig(configPath: String): C = YamlConfigLoader.load(configPath, configClass)
 
+  protected def extractSparkConfig(config: C): Map[String, String] = SparkApp.extractSparkConfig(config)
+
   protected def beforeSparkStart(config: C, args: Seq[String], logger: Logger): Unit = ()
 
   protected def createLogger(): Logger = LoggerFactory.getLogger(getClass)
@@ -58,6 +66,7 @@ object SparkApp {
     def create(
       appName: String,
       config: C,
+      sparkConfig: Map[String, String],
       logger: Logger,
       configureSpark: (SparkSession.Builder, C) => SparkSession.Builder
     ): SparkSession
@@ -69,11 +78,15 @@ object SparkApp {
     override def create(
       appName: String,
       config: C,
+      sparkConfig: Map[String, String],
       logger: Logger,
       configureSpark: (SparkSession.Builder, C) => SparkSession.Builder
     ): SparkSession = {
       val builder = SparkSession.builder().appName(appName)
-      configureSpark(builder, config).getOrCreate()
+      val withFrameworkConfig = sparkConfig.foldLeft(builder) { case (currentBuilder, (key, value)) =>
+        currentBuilder.config(key, value)
+      }
+      configureSpark(withFrameworkConfig, config).getOrCreate()
     }
 
     override def stop(spark: SparkSession, runFailure: Throwable, logger: Logger): Unit = {
@@ -138,5 +151,44 @@ object SparkApp {
     }
 
     Some(newValue)
+  }
+
+  trait HasSparkConfig {
+    def sparkConfig: Map[String, String]
+  }
+
+  def extractSparkConfig(config: AnyRef): Map[String, String] = config match {
+    case null => Map.empty
+    case provider: HasSparkConfig => provider.sparkConfig
+    case _ =>
+      extractSparkConfigByConvention(config)
+  }
+
+  private def extractSparkConfigByConvention(config: AnyRef): Map[String, String] = {
+    val candidateMethods = Seq("sparkConfig", "sparkConf")
+    val configClass = config.getClass
+
+    candidateMethods.iterator
+      .flatMap { methodName =>
+        try {
+          Some(configClass.getMethod(methodName))
+        } catch {
+          case _: NoSuchMethodException => None
+        }
+      }
+      .collectFirst {
+        case method if method.getParameterCount == 0 =>
+          method.invoke(config) match {
+            case map: scala.collection.Map[_, _] =>
+              map.iterator.map { case (key, value) =>
+                key.toString -> value.toString
+              }.toMap
+            case _ =>
+              throw new IllegalArgumentException(
+                s"${configClass.getSimpleName}.${method.getName} must return Map[String, String]"
+              )
+          }
+      }
+      .getOrElse(Map.empty)
   }
 }

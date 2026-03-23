@@ -1,27 +1,17 @@
 ---
-sidebar_position: 4
-title: SparkApp Guide
+title: Customers and Orders to customer_orders
 ---
 
-`SparkApp[C]` is the main entrypoint abstraction in SparkPlusPlus.
+This use case joins `customers` and `orders` and writes a curated `customer_orders` Delta dataset.
 
-## Core Contract
+## Goal
 
-You implement:
+- input datasets: `customers` and `orders`
+- output dataset: `customer_orders`
+- output format: Delta
+- objective: join customer master data with orders and publish a curated analytics-ready table
 
-- `appName`
-- `configClass`
-- `run(ctx)`
-
-You can also override:
-
-- `validateConfig(config)`
-- `configureSpark(builder, config)`
-- `beforeSparkStart(config, args, logger)`
-
-## Example
-
-This example reads `customers` and `orders`, joins them, and writes a curated `customer_orders` dataset in Delta format.
+## Example App
 
 ```scala
 import io.github.sparkplusplus._
@@ -29,7 +19,7 @@ import io.github.sparkplusplus.app.{AppContext, SparkApp}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lower, trim}
 
-final case class OrdersConfig(
+final case class CustomerOrdersConfig(
   customersPath: String,
   ordersPath: String,
   outputPath: String,
@@ -37,24 +27,24 @@ final case class OrdersConfig(
   sparkConfig: Map[String, String] = Map.empty
 )
 
-object OrdersJob extends SparkApp[OrdersConfig] {
-  override protected def appName: String = "orders-job"
+object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
+  override protected def appName: String = "customer-orders-app"
 
-  override protected def configClass: Class[OrdersConfig] = classOf[OrdersConfig]
+  override protected def configClass: Class[CustomerOrdersConfig] =
+    classOf[CustomerOrdersConfig]
 
-  override protected def validateConfig(config: OrdersConfig): Unit = {
+  override protected def validateConfig(config: CustomerOrdersConfig): Unit = {
     require(config.partitions > 0, "partitions must be positive")
   }
 
   override protected def configureSpark(
     builder: SparkSession.Builder,
-    config: OrdersConfig
+    config: CustomerOrdersConfig
   ): SparkSession.Builder = {
-    builder
-      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
   }
 
-  override protected def run(ctx: AppContext[OrdersConfig]): Unit = {
+  override protected def run(ctx: AppContext[CustomerOrdersConfig]): Unit = {
     val customers = ctx.spark.read
       .format("parquet")
       .load(ctx.config.customersPath)
@@ -76,8 +66,7 @@ object OrdersJob extends SparkApp[OrdersConfig] {
       )
       .dedup("order_id")
 
-    val customerOrders = orders
-      .join(customers, Seq("customer_id"), "left")
+    val customerOrders = orders.join(customers, Seq("customer_id"), "left")
 
     customerOrders.write
       .format("delta")
@@ -87,7 +76,7 @@ object OrdersJob extends SparkApp[OrdersConfig] {
 }
 ```
 
-Example YAML:
+## Example YAML
 
 ```yaml
 customersPath: s3://lakehouse/raw/customers
@@ -98,17 +87,3 @@ sparkConfig:
   spark.sql.shuffle.partitions: "200"
   spark.sql.session.timeZone: UTC
 ```
-
-In this example, `sparkConfig` is applied automatically to the Spark session before `configureSpark(...)` runs.
-
-## Runtime Sequence
-
-When `main(args)` runs, SparkPlusPlus:
-
-1. parses CLI args and requires `--config`
-2. loads YAML into your config type
-3. validates config
-4. creates a logger
-5. builds the `SparkSession`
-6. calls `run(ctx)`
-7. stops Spark in a `finally` block

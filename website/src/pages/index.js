@@ -38,8 +38,8 @@ function HomepageHeader() {
           <Link className="button button--primary button--lg" to="/docs/getting-started">
             Read the Docs
           </Link>
-          <Link className="button button--secondary button--lg" to="/docs/sparkapp">
-            See SparkApp
+          <Link className="button button--secondary button--lg" to="/use-cases">
+            See Usecases
           </Link>
         </div>
       </div>

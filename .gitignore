@@ -1,3 +1,6 @@
 .idea/
 target/
 pom.xml.versionsBackup
+website/node_modules/
+website/build/
+website/.docusaurus/

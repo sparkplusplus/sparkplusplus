@@ -138,6 +138,27 @@ The repository contains both:
 
 In restricted environments where a local Spark runtime cannot bind ports, the Spark-backed tests are excluded by default from `mvn test`.
 
+## Documentation Site
+
+This repository also contains the public documentation site source under `website/`.
+
+To work on the docs locally:
+
+```bash
+cd website
+npm install
+npm run start
+```
+
+To create a production build:
+
+```bash
+cd website
+npm run build
+```
+
+The intended public site domain is `https://sparkplusplus.github.io/`.
+
 ## License
 
 Apache License 2.0

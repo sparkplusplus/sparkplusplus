@@ -1,206 +1,143 @@
-# Spark Utils Library
+# SparkPlusPlus
 
-A utility library for Apache Spark with DataFrame operations that supports both Scala 2.12 and 2.13.
+SparkPlusPlus is a Scala framework for building Apache Spark applications with less boilerplate and a more consistent runtime model.
+
+The first framework layer is `SparkApp`, an abstract base class that standardizes:
+
+- YAML-based application config
+- `SparkSession` creation
+- application logging
+- argument parsing
+- consistent shutdown behavior
+
+The existing `DataFrameUtils` helpers remain available as a utility layer inside your apps.
 
 ## Features
 
-This library provides utility methods for common DataFrame operations:
+- `SparkApp[C]` for batch Spark jobs with typed config
+- `AppContext[C]` to provide `SparkSession`, config, logger, and passthrough args
+- YAML config loading with strict unknown-field validation
+- `DataFrame` helper methods via `DataFrameUtils` and implicit extensions
 
-- **dedup**: Remove duplicate rows from a DataFrame
-- **addRowNumber**: Add a row number column to the DataFrame
-- **countNulls**: Count null values in each column
-- **getBasicStats**: Get basic statistics for numeric columns
-- **renameColumns**: Rename columns using a mapping
+## Installation
 
-## Project Structure
-
-```
-spark-utils/
-├── pom.xml
-├── src/
-│   ├── main/
-│   │   └── scala/
-│   │       └── com/
-│   │           └── yourcompany/
-│   │               └── sparkutils/
-│   │                   ├── DataFrameUtils.scala
-│   │                   └── package.scala
-│   └── test/
-│       └── scala/
-│           └── com/
-│               └── yourcompany/
-│                   └── sparkutils/
-│                       └── DataFrameUtilsTest.scala
-└── README.md
+```xml
+<dependency>
+  <groupId>io.github.sparkplusplus</groupId>
+  <artifactId>sparkplusplus_2.12</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+</dependency>
 ```
 
-## Build Instructions
+Spark should usually be provided by your runtime environment:
 
-### Prerequisites
+```xml
+<dependency>
+  <groupId>org.apache.spark</groupId>
+  <artifactId>spark-sql_2.12</artifactId>
+  <version>3.4.1</version>
+  <scope>provided</scope>
+</dependency>
+```
 
-- Java 8 or higher
-- Maven 3.6 or higher
-- Apache Spark 3.4.1
+## SparkApp Example
 
-### Building for Scala 2.12 (default)
+```scala
+package example
+
+import io.github.sparkplusplus._
+import io.github.sparkplusplus.app.{AppContext, SparkApp}
+import org.apache.spark.sql.SparkSession
+
+final case class OrdersConfig(input: String, output: String, partitions: Int)
+
+object OrdersJob extends SparkApp[OrdersConfig] {
+
+  override protected def appName: String = "orders-job"
+
+  override protected def configClass: Class[OrdersConfig] = classOf[OrdersConfig]
+
+  override protected def validateConfig(config: OrdersConfig): Unit = {
+    require(config.partitions > 0, "partitions must be positive")
+  }
+
+  override protected def configureSpark(
+    builder: SparkSession.Builder,
+    config: OrdersConfig
+  ): SparkSession.Builder = {
+    builder.config("spark.sql.shuffle.partitions", config.partitions.toString)
+  }
+
+  override protected def run(ctx: AppContext[OrdersConfig]): Unit = {
+    val df = ctx.spark.read.parquet(ctx.config.input)
+    val cleaned = df.dedup("order_id")
+    cleaned.write.mode("overwrite").parquet(ctx.config.output)
+  }
+}
+```
+
+Run the app with:
 
 ```bash
-mvn clean compile
-mvn clean package
+spark-submit \
+  --class example.OrdersJob \
+  your-app.jar \
+  --config conf/orders.yaml \
+  --env dev
 ```
 
-### Building for Scala 2.13
+Example YAML config:
 
-```bash
-mvn clean compile -Pscala-2.13
-mvn clean package -Pscala-2.13
+```yaml
+input: s3://bucket/orders/input
+output: s3://bucket/orders/output
+partitions: 200
 ```
 
-### Running Tests
+Inside `run`, passthrough args after `--config` are available through `ctx.args`.
+
+## DataFrame Utilities
+
+SparkPlusPlus still includes utility methods for common `DataFrame` operations:
+
+- `dedup`
+- `addRowNumber`
+- `countNulls`
+- `getBasicStats`
+- `renameColumns`
+
+Example:
+
+```scala
+import io.github.sparkplusplus._
+
+val deduped = df.dedup("order_id")
+val numbered = df.addRowNumber("row_id", "created_at")
+```
+
+## Build
 
 ```bash
-# For Scala 2.12
 mvn test
-
-# For Scala 2.13
-mvn test -Pscala-2.13
+mvn package
 ```
 
-### Building Both Versions
+For Scala 2.13:
 
 ```bash
-# Build for Scala 2.12
-mvn clean package -Pscala-2.12
-
-# Build for Scala 2.13
-mvn clean package -Pscala-2.13
+mvn test -Pscala-2.13
+mvn package -Pscala-2.13
 ```
 
-### Publishing Note
+## Testing Notes
 
-Publishing uses concrete Maven coordinates per Scala binary version (`sparkplusplus_2.12` and `sparkplusplus_2.13`).
-The 2.13 publish path temporarily rewrites `<artifactId>` during deploy to keep Sonatype Central filename validation consistent.
+The repository contains both:
 
-## Usage
+- pure unit tests for framework behavior
+- Spark-backed integration tests for `DataFrameUtils`
 
-### Using Object Methods
-
-```scala
-import org.apache.spark.sql.SparkSession
-import com.yourcompany.sparkutils.DataFrameUtils
-
-val spark = SparkSession.builder()
-  .appName("SparkUtilsExample")
-  .master("local[*]")
-  .getOrCreate()
-
-import spark.implicits._
-
-val df = Seq(
-  ("Alice", 25, "Engineer"),
-  ("Bob", 30, "Manager"),
-  ("Alice", 25, "Engineer")
-).toDF("name", "age", "role")
-
-// Remove duplicates
-val dedupedDf = DataFrameUtils.dedup(df)
-
-// Add row number
-val withRowNum = DataFrameUtils.addRowNumber(df, "id", Seq("age"))
-
-// Count nulls
-val nullCounts = DataFrameUtils.countNulls(df)
-
-// Get basic statistics
-val stats = DataFrameUtils.getBasicStats(df)
-
-// Rename columns
-val renamedDf = DataFrameUtils.renameColumns(df, Map("name" -> "full_name"))
-```
-
-### Using Implicit Extensions
-
-```scala
-import org.apache.spark.sql.SparkSession
-import com.yourcompany.sparkutils._
-
-val spark = SparkSession.builder()
-  .appName("SparkUtilsExample")
-  .master("local[*]")
-  .getOrCreate()
-
-import spark.implicits._
-
-val df = Seq(
-  ("Alice", 25, "Engineer"),
-  ("Bob", 30, "Manager"),
-  ("Alice", 25, "Engineer")
-).toDF("name", "age", "role")
-
-// Using implicit extensions
-val dedupedDf = df.dedup()
-val withRowNum = df.addRowNumber("age")
-val nullCounts = df.countNulls()
-val stats = df.getBasicStats()
-val renamedDf = df.renameColumns(Map("name" -> "full_name"))
-```
-
-## API Reference
-
-### DataFrameUtils Object Methods
-
-#### dedup(df: DataFrame, columns: Seq[String] = Seq.empty): DataFrame
-Remove duplicate rows from a DataFrame.
-- `df`: Input DataFrame
-- `columns`: Optional list of columns to consider for deduplication
-- Returns: DataFrame with duplicates removed
-
-#### addRowNumber(df: DataFrame, columnName: String = "row_number", orderBy: Seq[String] = Seq.empty): DataFrame
-Add a row number column to the DataFrame.
-- `df`: Input DataFrame
-- `columnName`: Name of the row number column (default: "row_number")
-- `orderBy`: Optional columns to order by
-- Returns: DataFrame with row number column added
-
-#### countNulls(df: DataFrame): DataFrame
-Count null values in each column.
-- `df`: Input DataFrame
-- Returns: DataFrame with column names and their null counts
-
-#### getBasicStats(df: DataFrame): DataFrame
-Get basic statistics for numeric columns.
-- `df`: Input DataFrame
-- Returns: DataFrame with basic statistics
-
-#### renameColumns(df: DataFrame, columnMapping: Map[String, String]): DataFrame
-Rename columns using a mapping.
-- `df`: Input DataFrame
-- `columnMapping`: Map of old column names to new column names
-- Returns: DataFrame with renamed columns
-
-### Implicit Extensions
-
-When you import `com.yourcompany.sparkutils._`, the following methods are added to DataFrame:
-
-- `df.dedup(columns: String*)`
-- `df.addRowNumber(columnName: String, orderBy: String*)`
-- `df.addRowNumber(orderBy: String*)`
-- `df.countNulls()`
-- `df.getBasicStats()`
-- `df.renameColumns(columnMapping: Map[String, String])`
-
-## Dependencies
-
-- Scala 2.12.17 or 2.13.10
-- Apache Spark 3.4.1
-- ScalaTest 3.2.15 (for testing)
-
-## Generated Artifacts
-
-The build process generates JARs with Scala binary version in their names:
-- `spark-utils_2.12-1.0.0.jar` (for Scala 2.12)
-- `spark-utils_2.13-1.0.0.jar` (for Scala 2.13)
+In restricted environments where a local Spark runtime cannot bind ports, the Spark-backed tests are excluded by default from `mvn test`.
 
 ## License
 
-This project is licensed under the Apache License 2.0.
+Apache License 2.0

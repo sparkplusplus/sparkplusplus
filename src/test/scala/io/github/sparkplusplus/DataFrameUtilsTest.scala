@@ -24,7 +24,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     }
   }
 
-  test("dedup should remove duplicate rows") {
+  test("dedup should remove duplicate rows", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -41,7 +41,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(dedupedDf.count() == 3)
   }
 
-  test("dedup with specific columns should work correctly") {
+  test("dedup with specific columns should work correctly", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -58,7 +58,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(dedupedDf.count() == 3) // Should keep only unique names
   }
 
-  test("addRowNumber should add row number column") {
+  test("addRowNumber should add row number column", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -75,7 +75,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(dfWithRowNum.count() == 3)
   }
 
-  test("countNulls should count null values correctly") {
+  test("countNulls should count null values correctly", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -95,7 +95,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(nullCounts("age") == 1)
   }
 
-  test("getBasicStats should return statistics for numeric columns") {
+  test("getBasicStats should return statistics for numeric columns", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -112,7 +112,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(statsDf.columns.contains("age")) // Should contain age column
   }
 
-  test("renameColumns should rename columns correctly") {
+  test("renameColumns should rename columns correctly", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -130,7 +130,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(!renamedDf.columns.contains("age"))
   }
 
-  test("implicit DataFrame extensions should work") {
+  test("implicit DataFrame extensions should work", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -146,7 +146,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(dedupedDf.count() == 2)
   }
 
-  test("implicit DataFrame extensions - addRowNumber should work") {
+  test("implicit DataFrame extensions - addRowNumber should work", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -163,7 +163,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(dfWithRowNum.count() == 3)
   }
 
-  test("implicit DataFrame extensions - countNulls should work") {
+  test("implicit DataFrame extensions - countNulls should work", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 
@@ -179,7 +179,7 @@ class DataFrameUtilsTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(nullCountsDf.count() == 2)
   }
 
-  test("implicit DataFrame extensions - renameColumns should work") {
+  test("implicit DataFrame extensions - renameColumns should work", RequiresSparkRuntime) {
     val sparkSession = spark
     import sparkSession.implicits._
 

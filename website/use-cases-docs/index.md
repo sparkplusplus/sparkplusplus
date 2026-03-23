@@ -21,7 +21,7 @@ These two pages are intentionally different:
 
 Both examples keep the same framework shape:
 
-- `datasets` list in YAML
-- `SparkApp` entrypoint
+- `inputs` and `outputs` in YAML
+- `SparkETLApp` entrypoint
 - Spark session settings from `sparkConfig`
-- application logic focused on joins, transforms, and `ctx.writeDataset(...)`
+- application logic focused on joins, transforms, and returning named outputs

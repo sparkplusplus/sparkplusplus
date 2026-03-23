@@ -3,7 +3,7 @@ sidebar_position: 6
 title: Runtime and AppContext
 ---
 
-`AppContext[C]` is what your `run` method receives.
+`AppContext[C]` is what your `run`, `extract`, `transform`, or `load` methods receive.
 
 ## Fields
 
@@ -16,14 +16,15 @@ final case class AppContext[C](
 )
 ```
 
-## Dataset Helpers
+## IO Helpers
 
-If your config exposes `datasets: Seq[DatasetConfig]`, `AppContext` also gives you:
+If your config exposes `inputs` and `outputs`, `AppContext` also gives you:
 
 ```scala
-ctx.dataset("customers")
-ctx.readDataset("customers")
-ctx.writeDataset(customerOrders, "customer_orders")
+ctx.input("customers")
+ctx.output("customer_orders")
+ctx.readInput("customers")
+ctx.writeOutput(customerOrders, "customer_orders")
 ```
 
 ## When to Use It
@@ -32,7 +33,7 @@ ctx.writeDataset(customerOrders, "customer_orders")
 - `ctx.config` for typed application settings
 - `ctx.args` for extra runtime flags outside the framework core
 - `ctx.logger` for application-level logging
-- `ctx.readDataset(...)` and `ctx.writeDataset(...)` for simple config-driven IO
+- `ctx.readInput(...)` and `ctx.writeOutput(...)` for simple config-driven IO
 
 ## Hooks Around Runtime
 

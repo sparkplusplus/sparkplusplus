@@ -9,19 +9,22 @@ The first framework layer is `SparkApp`, an abstract base class that standardize
 - application logging
 - argument parsing
 - consistent shutdown behavior
-- simple dataset-driven IO helpers
+- config-driven IO helpers
+
+On top of that, `SparkETLApp` gives you a faster ETL-oriented path with `extract()`, `transform()`, and `load()`.
 
 The existing `DataFrameUtils` helpers remain available as a utility layer inside your apps.
 `SchemaUtils` adds schema derivation, loading, and recursive schema inspection helpers inspired by the reference `spark-utils` project.
 
 ## Features
 
-- `SparkApp[C]` for batch Spark jobs with typed config
+- `SparkApp[C]` for custom batch Spark jobs with typed config
+- `SparkETLApp[C]` for framework-managed ETL jobs
 - `AppContext[C]` to provide `SparkSession`, config, logger, and passthrough args
 - YAML config loading with strict unknown-field validation
 - `DataFrame` helper methods via `DataFrameUtils` and implicit extensions
 - `SchemaUtils` helpers for deriving, loading, and validating Spark schemas
-- simple `datasets` config for input/output definitions
+- separate `inputs` and `outputs` config for file-based IO definitions
 
 ## Installation
 
@@ -44,23 +47,23 @@ Spark should usually be provided by your runtime environment:
 </dependency>
 ```
 
-## SparkApp Example
+## SparkETLApp Example
 
 ```scala
 package example
 
 import io.github.sparkplusplus._
-import io.github.sparkplusplus.app.{AppContext, SparkApp}
+import io.github.sparkplusplus.app.{AppContext, SparkApp, SparkETLApp}
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
 import org.apache.spark.sql.SparkSession
 
-import io.github.sparkplusplus.io.DatasetConfig
-
 final case class OrdersConfig(
-  datasets: Seq[DatasetConfig],
+  inputs: Seq[InputDatasetConfig],
+  outputs: Seq[OutputDatasetConfig],
   sparkConfig: Map[String, String] = Map.empty
-) extends SparkApp.HasDatasets with SparkApp.HasSparkConfig
+) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets with SparkApp.HasSparkConfig
 
-object OrdersJob extends SparkApp[OrdersConfig] {
+object OrdersJob extends SparkETLApp[OrdersConfig] {
 
   override protected def appName: String = "orders-job"
 
@@ -73,13 +76,16 @@ object OrdersJob extends SparkApp[OrdersConfig] {
     builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
   }
 
-  override protected def run(ctx: AppContext[OrdersConfig]): Unit = {
-    val customers = ctx.readDataset("customers")
-    val orders = ctx.readDataset("orders").dedup("order_id")
+  override protected def transform(
+    ctx: AppContext[OrdersConfig],
+    inputs: Map[String, org.apache.spark.sql.DataFrame]
+  ): Map[String, org.apache.spark.sql.DataFrame] = {
+    val customers = inputs("customers")
+    val orders = inputs("orders").dedup("order_id")
 
     val customerOrders = orders.join(customers, Seq("customer_id"), "left")
 
-    ctx.writeDataset(customerOrders, "customer_orders")
+    Map("customer_orders" -> customerOrders)
   }
 }
 ```
@@ -97,53 +103,64 @@ spark-submit \
 Example YAML config:
 
 ```yaml
-datasets:
+inputs:
   - name: customers
-    type: input
     path: s3://bucket/customers/input
     format: parquet
+    filter: is_active = true
   - name: orders
-    type: input
     path: s3://bucket/orders/input
     format: parquet
+outputs:
   - name: customer_orders
-    type: output
     path: s3://bucket/orders/output
     format: delta
     mode: overwrite
     partitionBy:
       - order_date
+    repartition: 200
 sparkConfig:
   spark.sql.shuffle.partitions: "200"
   spark.sql.session.timeZone: UTC
 ```
 
-Inside `run`, passthrough args after `--config` are available through `ctx.args`.
+Inside `transform`, passthrough args after `--config` are available through `ctx.args`.
 
 ## Dataset IO
 
-SparkPlusPlus can keep IO config in one simple `datasets` list. Each dataset entry declares a `type`:
+SparkPlusPlus keeps file IO config in two simple sections:
 
-- `input` for read-only datasets
-- `output` for write targets
+- `inputs` for read-only datasets
+- `outputs` for write targets
 
 At runtime:
 
 ```scala
-val customers = ctx.readDataset("customers")
-val orders = ctx.readDataset("orders")
+val customers = ctx.readInput("customers")
+val orders = ctx.readInput("orders")
 
 val customerOrders = orders.join(customers, Seq("customer_id"))
 
-ctx.writeDataset(customerOrders, "customer_orders")
+ctx.writeOutput(customerOrders, "customer_orders")
 ```
 
 Validation rules:
 
-- dataset names must be unique
-- `input` datasets can use `schemaPath` or `schemaJson`
-- `output` datasets can use `mode` and `partitionBy`
+- names must be unique within and across `inputs` and `outputs`
+- input datasets can use `schemaPath`, `schemaJson`, `filter`, and reader `options`
+- output datasets can use `mode`, `partitionBy`, `repartition`, `coalesce`, and writer `options`
+- `repartition` and `coalesce` are mutually exclusive
 - invalid field combinations fail before Spark starts
+
+## SparkApp vs SparkETLApp
+
+Use `SparkETLApp` when you want the framework to:
+
+- read all configured inputs
+- call your transformation logic
+- write all configured outputs
+
+Use `SparkApp` when you want full lifecycle control and prefer writing `run(ctx)` yourself.
 
 ## DataFrame Utilities
 

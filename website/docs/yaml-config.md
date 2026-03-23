@@ -20,55 +20,75 @@ Arguments that are not consumed by SparkPlusPlus remain available through `ctx.a
 ## Example Config
 
 ```yaml
-datasets:
+inputs:
   - name: customers
-    type: input
     path: s3://lakehouse/raw/customers
     format: parquet
+    filter: is_active = true
   - name: orders
-    type: input
     path: s3://lakehouse/raw/orders
     format: parquet
+outputs:
   - name: customer_orders
-    type: output
     path: s3://lakehouse/silver/customer_orders
     format: delta
     mode: overwrite
     partitionBy:
       - order_date
+    repartition: 200
 sparkConfig:
   spark.sql.shuffle.partitions: "200"
   spark.sql.session.timeZone: UTC
   spark.databricks.delta.schema.autoMerge.enabled: "true"
 ```
 
-## Dataset Rules
+## Input and Output Rules
 
-Each dataset entry must define:
+Each input entry must define:
 
 - `name`
-- `type`
 - `path`
 - `format`
 
-Supported `type` values:
-
-- `input`
-- `output`
-
-Input datasets may additionally define:
+Inputs may additionally define:
 
 - `schemaPath`
 - `schemaJson`
+- `filter`
 - `options`
 
-Output datasets may additionally define:
+Each output entry must define:
+
+- `name`
+- `path`
+- `format`
+
+Outputs may additionally define:
 
 - `mode`
 - `partitionBy`
+- `repartition`
+- `coalesce`
 - `options`
 
 SparkPlusPlus validates these combinations before the application starts.
+
+Validation highlights:
+
+- names must be unique within `inputs`
+- names must be unique within `outputs`
+- names must also be unique across both sections
+- `schemaPath` and `schemaJson` cannot be used together
+- `repartition` and `coalesce` cannot be used together
+- blank filters fail fast
+
+## Config Concepts
+
+- `partitionBy` controls how an output dataset is physically written.
+- `repartition` and `coalesce` control how many Spark partitions are present before the write.
+- `spark.sql.shuffle.partitions` is a Spark session setting, not an output dataset property.
+
+Keep Spark execution tuning in `sparkConfig`. Keep dataset-specific write behavior in the matching `outputs` entry.
 
 ## Applying Spark Session Config
 

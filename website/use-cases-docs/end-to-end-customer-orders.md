@@ -3,7 +3,7 @@ title: End-to-End Customer Orders
 sidebar_position: 2
 ---
 
-This is the simplest complete SparkPlusPlus use case. It shows how a developer can move from YAML config to a curated Delta output using the current `datasets` model.
+This is the simplest complete SparkPlusPlus use case. It shows how a developer can move from YAML config to a curated Delta output using `SparkETLApp` plus `inputs` and `outputs`.
 
 ## Goal
 
@@ -16,31 +16,30 @@ This is the simplest complete SparkPlusPlus use case. It shows how a developer c
 
 Use this page when you want the shortest realistic example of how SparkPlusPlus is supposed to feel in day-to-day development:
 
-- datasets declared once in YAML
+- inputs and outputs declared once in YAML
 - app code focused on business logic
 - output behavior configured without changing Scala code
 
 ## YAML
 
 ```yaml
-datasets:
+inputs:
   - name: customers
-    type: input
     path: s3://lakehouse/raw/customers
     format: parquet
 
   - name: orders
-    type: input
     path: s3://lakehouse/raw/orders
     format: parquet
 
+outputs:
   - name: customer_orders
-    type: output
     path: s3://lakehouse/silver/customer_orders
     format: delta
     mode: overwrite
     partitionBy:
       - order_date
+    repartition: 200
 
 sparkConfig:
   spark.sql.shuffle.partitions: "200"
@@ -52,17 +51,18 @@ sparkConfig:
 
 ```scala
 import io.github.sparkplusplus._
-import io.github.sparkplusplus.app.{AppContext, SparkApp}
-import io.github.sparkplusplus.io.DatasetConfig
-import org.apache.spark.sql.SparkSession
+import io.github.sparkplusplus.app.{AppContext, SparkETLApp, SparkApp}
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, lower, to_date, trim}
 
 final case class CustomerOrdersConfig(
-  datasets: Seq[DatasetConfig],
+  inputs: Seq[InputDatasetConfig],
+  outputs: Seq[OutputDatasetConfig],
   sparkConfig: Map[String, String] = Map.empty
-) extends SparkApp.HasDatasets with SparkApp.HasSparkConfig
+) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets with SparkApp.HasSparkConfig
 
-object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
+object CustomerOrdersApp extends SparkETLApp[CustomerOrdersConfig] {
 
   override protected def appName: String = "customer-orders-app"
 
@@ -76,15 +76,18 @@ object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
     builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
   }
 
-  override protected def run(ctx: AppContext[CustomerOrdersConfig]): Unit = {
-    val customers = ctx.readDataset("customers")
+  override protected def transform(
+    ctx: AppContext[CustomerOrdersConfig],
+    inputs: Map[String, DataFrame]
+  ): Map[String, DataFrame] = {
+    val customers = inputs("customers")
       .select(
         col("customer_id"),
         trim(col("customer_name")).alias("customer_name"),
         trim(col("customer_segment")).alias("customer_segment")
       )
 
-    val orders = ctx.readDataset("orders")
+    val orders = inputs("orders")
       .select(
         col("order_id"),
         col("customer_id"),
@@ -106,7 +109,7 @@ object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
         col("order_date")
       )
 
-    ctx.writeDataset(customerOrders, "customer_orders")
+    Map("customer_orders" -> customerOrders)
   }
 }
 ```
@@ -123,18 +126,18 @@ spark-submit \
 ## End-to-End Flow
 
 1. SparkPlusPlus loads the YAML config.
-2. `datasets` are validated before Spark starts.
+2. `inputs` and `outputs` are validated before Spark starts.
 3. `sparkConfig` entries are applied to the Spark session.
-4. `ctx.readDataset("customers")` and `ctx.readDataset("orders")` load both inputs.
-5. The app joins and curates the records.
-6. `ctx.writeDataset(customerOrders, "customer_orders")` writes the final Delta dataset.
+4. `SparkETLApp.extract()` reads all configured inputs.
+5. `transform(...)` joins and curates the records.
+6. `SparkETLApp.load()` writes the returned `customer_orders` DataFrame.
 
 ## What the Developer Gets
 
 - input and output paths live in YAML, not in code
-- output behavior such as `mode` and `partitionBy` is also in YAML
+- output behavior such as `mode`, `partitionBy`, and `repartition` is also in YAML
 - the app code only focuses on Spark transforms
-- `ctx.readDataset(...)` and `ctx.writeDataset(...)` keep IO usage simple
+- `SparkETLApp` removes most IO boilerplate
 - the same app can move between environments by changing only YAML
 
 ## Result

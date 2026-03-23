@@ -7,18 +7,19 @@ SparkPlusPlus is designed for teams that want a light framework on top of Apache
 
 ## What You Get
 
-- `SparkApp[C]` as the standard application entrypoint
+- `SparkETLApp[C]` as the fastest application entrypoint for common ETL jobs
+- `SparkApp[C]` when you need a fully custom runtime flow
 - `AppContext[C]` carrying `SparkSession`, typed config, CLI passthrough args, and logger
 - YAML config decoding into Scala case classes
-- simple dataset-based IO through `ctx.readDataset(...)` and `ctx.writeDataset(...)`
+- simple IO through `ctx.readInput(...)` and `ctx.writeOutput(...)`
 - `DataFrameUtils` and implicit DataFrame extensions
 
 ## Typical Flow
 
 1. Define a Scala case class for your app config.
-2. Extend `SparkApp[YourConfig]`.
+2. Extend `SparkETLApp[YourConfig]`.
 3. Point the app at a YAML file with `--config`.
-4. Implement business logic in `run(ctx)`.
+4. Implement business logic in `transform(ctx, inputs)`.
 
 ## First Real Use Case
 
@@ -34,21 +35,25 @@ If you want a fuller example, see [Use Case Examples](/use-cases/).
 ## Minimal Example
 
 ```scala
-import io.github.sparkplusplus.app.{AppContext, SparkApp}
-import io.github.sparkplusplus.io.DatasetConfig
+import io.github.sparkplusplus.app.{AppContext, SparkApp, SparkETLApp}
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
+import org.apache.spark.sql.DataFrame
 
 final case class ExampleConfig(
-  datasets: Seq[DatasetConfig]
-) extends SparkApp.HasDatasets
+  inputs: Seq[InputDatasetConfig],
+  outputs: Seq[OutputDatasetConfig]
+) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets
 
-object ExampleJob extends SparkApp[ExampleConfig] {
+object ExampleJob extends SparkETLApp[ExampleConfig] {
   override protected def appName: String = "example-job"
 
   override protected def configClass: Class[ExampleConfig] = classOf[ExampleConfig]
 
-  override protected def run(ctx: AppContext[ExampleConfig]): Unit = {
-    val df = ctx.readDataset("input_orders")
-    ctx.writeDataset(df, "output_orders")
+  override protected def transform(
+    ctx: AppContext[ExampleConfig],
+    inputs: Map[String, DataFrame]
+  ): Map[String, DataFrame] = {
+    Map("output_orders" -> inputs("input_orders"))
   }
 }
 ```
@@ -56,13 +61,12 @@ object ExampleJob extends SparkApp[ExampleConfig] {
 Matching YAML:
 
 ```yaml
-datasets:
+inputs:
   - name: input_orders
-    type: input
     path: s3://bucket/raw/orders
     format: parquet
+outputs:
   - name: output_orders
-    type: output
     path: s3://bucket/curated/orders
     format: parquet
     mode: overwrite

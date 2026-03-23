@@ -5,16 +5,17 @@ import org.apache.spark.sql.{DataFrame, DataFrameReader, SparkSession}
 
 object SparkDatasetIO {
 
-  def readDataset(spark: SparkSession, dataset: DatasetConfig): DataFrame = {
-    DatasetConfig.requireInput(dataset)
+  def readInput(spark: SparkSession, dataset: InputDatasetConfig): DataFrame = {
     val baseReader = spark.read.format(dataset.formatNormalized).options(dataset.options)
-    readerWithSchema(baseReader, dataset).load(dataset.path)
+    val loaded = readerWithSchema(baseReader, dataset).load(dataset.path)
+
+    dataset.filter.map(loaded.filter).getOrElse(loaded)
   }
 
-  def writeDataset(df: DataFrame, dataset: DatasetConfig): Unit = {
-    DatasetConfig.requireOutput(dataset)
+  def writeOutput(df: DataFrame, dataset: OutputDatasetConfig): Unit = {
+    val preparedFrame = dataset.repartition.map(df.repartition).orElse(dataset.coalesce.map(df.coalesce)).getOrElse(df)
 
-    val baseWriter = df.write.format(dataset.formatNormalized).options(dataset.options)
+    val baseWriter = preparedFrame.write.format(dataset.formatNormalized).options(dataset.options)
     val writerWithMode = dataset.mode.map(baseWriter.mode).getOrElse(baseWriter)
     val writerWithPartitions =
       if (dataset.partitionBy.nonEmpty) writerWithMode.partitionBy(dataset.partitionBy: _*) else writerWithMode
@@ -22,16 +23,16 @@ object SparkDatasetIO {
     writerWithPartitions.save(dataset.path)
   }
 
-  private def readerWithSchema(reader: DataFrameReader, dataset: DatasetConfig): DataFrameReader = {
+  private def readerWithSchema(reader: DataFrameReader, dataset: InputDatasetConfig): DataFrameReader = {
     val schema =
       dataset.schemaPath.map { path =>
         SchemaUtils.loadSchemaFromFile(path).getOrElse {
-          throw new IllegalArgumentException(s"Failed to load schemaPath for dataset '${dataset.name}': $path")
+          throw new IllegalArgumentException(s"Failed to load schemaPath for input dataset '${dataset.name}': $path")
         }
       }.orElse {
         dataset.schemaJson.map { json =>
           SchemaUtils.loadSchemaFromString(json).getOrElse {
-            throw new IllegalArgumentException(s"Failed to parse schemaJson for dataset '${dataset.name}'")
+            throw new IllegalArgumentException(s"Failed to parse schemaJson for input dataset '${dataset.name}'")
           }
         }
       }

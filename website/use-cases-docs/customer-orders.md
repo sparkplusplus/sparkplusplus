@@ -28,17 +28,18 @@ Use this version when:
 
 ```scala
 import io.github.sparkplusplus._
-import io.github.sparkplusplus.app.{AppContext, SparkApp}
-import io.github.sparkplusplus.io.DatasetConfig
-import org.apache.spark.sql.SparkSession
+import io.github.sparkplusplus.app.{AppContext, SparkApp, SparkETLApp}
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, lower, struct, to_date, trim}
 
 final case class CustomerOrdersConfig(
-  datasets: Seq[DatasetConfig],
+  inputs: Seq[InputDatasetConfig],
+  outputs: Seq[OutputDatasetConfig],
   sparkConfig: Map[String, String] = Map.empty
-) extends SparkApp.HasDatasets with SparkApp.HasSparkConfig
+) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets with SparkApp.HasSparkConfig
 
-object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
+object CustomerOrdersApp extends SparkETLApp[CustomerOrdersConfig] {
   override protected def appName: String = "customer-orders-app"
 
   override protected def configClass: Class[CustomerOrdersConfig] =
@@ -51,15 +52,18 @@ object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
     builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
   }
 
-  override protected def run(ctx: AppContext[CustomerOrdersConfig]): Unit = {
-    val customers = ctx.readDataset("customers")
+  override protected def transform(
+    ctx: AppContext[CustomerOrdersConfig],
+    inputs: Map[String, DataFrame]
+  ): Map[String, DataFrame] = {
+    val customers = inputs("customers")
       .select(
         col("customer_id"),
         trim(col("customer_name")).alias("customer_name"),
         trim(col("customer_segment")).alias("customer_segment")
       )
 
-    val orders = ctx.readDataset("orders")
+    val orders = inputs("orders")
       .select(
         col("order_id"),
         col("customer_id"),
@@ -87,7 +91,7 @@ object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
       .flattenFields()
       .makeColumnNamesAvroCompliant()
 
-    ctx.writeDataset(customerOrders, "customer_orders")
+    Map("customer_orders" -> customerOrders)
   }
 }
 ```
@@ -95,27 +99,27 @@ object CustomerOrdersApp extends SparkApp[CustomerOrdersConfig] {
 ## Example YAML
 
 ```yaml
-datasets:
+inputs:
   - name: customers
-    type: input
     path: s3://lakehouse/raw/customers.json
     format: json
     schemaPath: schemas/customers.json
+    filter: customer_status = 'ACTIVE'
   - name: orders
-    type: input
     path: s3://lakehouse/raw/orders.csv
     format: csv
     options:
       header: "true"
       delimiter: ","
     schemaPath: schemas/orders.json
+outputs:
   - name: customer_orders
-    type: output
     path: s3://lakehouse/silver/customer_orders
     format: delta
     mode: overwrite
     partitionBy:
       - order_date
+    repartition: 200
 sparkConfig:
   spark.sql.shuffle.partitions: "200"
   spark.sql.session.timeZone: UTC
@@ -124,6 +128,7 @@ sparkConfig:
 ## What Is Different from the Basic Example
 
 - input schemas are fixed with `schemaPath`
+- the `customers` input is filtered at read time through config
 - input formats can differ across datasets
 - the output is reshaped through nested business structs
 - `flattenFields()` converts nested structs into stable top-level columns

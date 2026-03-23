@@ -1,6 +1,6 @@
 package io.github.sparkplusplus.app
 
-import io.github.sparkplusplus.io.DatasetConfig
+import io.github.sparkplusplus.io.{DatasetCollection, DatasetConfig, InputDatasetConfig, OutputDatasetConfig}
 import org.apache.spark.sql.SparkSession
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -20,7 +20,7 @@ abstract class SparkApp[C <: AnyRef] {
     val parsedArgs = parseArguments(args.toIndexedSeq)
     val config = loadConfig(parsedArgs.configPath)
     validateConfig(config)
-    SparkApp.extractDatasets(config)
+    SparkApp.extractDatasetCollection(config)
 
     val logger = createLogger()
     beforeSparkStart(config, parsedArgs.passthroughArgs, logger)
@@ -159,8 +159,12 @@ object SparkApp {
     def sparkConfig: Map[String, String]
   }
 
-  trait HasDatasets {
-    def datasets: Seq[DatasetConfig]
+  trait WithInputDatasets {
+    def inputs: Seq[InputDatasetConfig]
+  }
+
+  trait WithOutputDatasets {
+    def outputs: Seq[OutputDatasetConfig]
   }
 
   def extractSparkConfig(config: AnyRef): Map[String, String] = config match {
@@ -169,6 +173,24 @@ object SparkApp {
     case _ =>
       extractSparkConfigByConvention(config)
   }
+
+  def extractDatasetCollection(config: AnyRef): DatasetCollection = config match {
+    case null => DatasetCollection()
+    case provider: WithInputDatasets with WithOutputDatasets =>
+      DatasetConfig.validateAll(DatasetCollection(provider.inputs, provider.outputs))
+    case provider: WithInputDatasets =>
+      DatasetConfig.validateAll(DatasetCollection(inputs = provider.inputs))
+    case provider: WithOutputDatasets =>
+      DatasetConfig.validateAll(DatasetCollection(outputs = provider.outputs))
+    case _ =>
+      extractDatasetsByConvention(config)
+  }
+
+  def extractInputDatasets(config: AnyRef): Seq[InputDatasetConfig] =
+    extractDatasetCollection(config).inputs
+
+  def extractOutputDatasets(config: AnyRef): Seq[OutputDatasetConfig] =
+    extractDatasetCollection(config).outputs
 
   private def extractSparkConfigByConvention(config: AnyRef): Map[String, String] = {
     val candidateMethods = Seq("sparkConfig", "sparkConf")
@@ -198,34 +220,43 @@ object SparkApp {
       .getOrElse(Map.empty)
   }
 
-  def extractDatasets(config: AnyRef): Seq[DatasetConfig] = config match {
-    case null => Seq.empty
-    case provider: HasDatasets => DatasetConfig.validateAll(provider.datasets)
-    case _ =>
-      extractDatasetsByConvention(config)
+  private def extractDatasetsByConvention(config: AnyRef): DatasetCollection = {
+    val configClass = config.getClass
+    val inputs = extractDatasetSeq(config, configClass, "inputs", "InputDatasetConfig").map {
+      case dataset: InputDatasetConfig => dataset
+      case other =>
+        throw new IllegalArgumentException(
+          s"${configClass.getSimpleName}.inputs must contain InputDatasetConfig entries, found ${other.getClass.getName}"
+        )
+    }
+    val outputs = extractDatasetSeq(config, configClass, "outputs", "OutputDatasetConfig").map {
+      case dataset: OutputDatasetConfig => dataset
+      case other =>
+        throw new IllegalArgumentException(
+          s"${configClass.getSimpleName}.outputs must contain OutputDatasetConfig entries, found ${other.getClass.getName}"
+        )
+    }
+
+    DatasetConfig.validateAll(DatasetCollection(inputs, outputs))
   }
 
-  private def extractDatasetsByConvention(config: AnyRef): Seq[DatasetConfig] = {
-    val configClass = config.getClass
-
+  private def extractDatasetSeq(
+    config: AnyRef,
+    configClass: Class[_],
+    methodName: String,
+    expectedTypeName: String
+  ): Seq[Any] = {
     try {
-      val method = configClass.getMethod("datasets")
+      val method = configClass.getMethod(methodName)
       if (method.getParameterCount != 0) {
         Seq.empty
       } else {
         method.invoke(config) match {
           case null => Seq.empty
-          case seq: Seq[_] =>
-            DatasetConfig.validateAll(seq.map {
-              case dataset: DatasetConfig => dataset
-              case other =>
-                throw new IllegalArgumentException(
-                  s"${configClass.getSimpleName}.datasets must contain DatasetConfig entries, found ${other.getClass.getName}"
-                )
-            })
+          case seq: Seq[_] => seq
           case other =>
             throw new IllegalArgumentException(
-              s"${configClass.getSimpleName}.datasets must return Seq[DatasetConfig], found ${other.getClass.getName}"
+              s"${configClass.getSimpleName}.$methodName must return Seq[$expectedTypeName], found ${other.getClass.getName}"
             )
         }
       }

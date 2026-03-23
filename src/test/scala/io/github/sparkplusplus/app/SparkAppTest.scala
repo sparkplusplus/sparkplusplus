@@ -1,6 +1,6 @@
 package io.github.sparkplusplus.app
 
-import io.github.sparkplusplus.io.DatasetConfig
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
@@ -124,20 +124,21 @@ class SparkAppTest extends AnyFunSuite {
     )
   }
 
-  test("YamlConfigLoader supports datasets list") {
+  test("YamlConfigLoader supports separate inputs and outputs") {
     val path = writeTempFile(
-      """datasets:
+      """inputs:
         |  - name: customers
-        |    type: input
         |    path: s3://lakehouse/raw/customers
         |    format: parquet
+        |    filter: is_active = true
+        |outputs:
         |  - name: customer_orders
-        |    type: output
         |    path: s3://lakehouse/silver/customer_orders
         |    format: delta
         |    mode: overwrite
         |    partitionBy:
         |      - order_date
+        |    repartition: 24
         |""".stripMargin
     )
 
@@ -145,61 +146,84 @@ class SparkAppTest extends AnyFunSuite {
 
     assert(
       config == DatasetConfigCaseClass(
-        Seq(
-          DatasetConfig("customers", "input", "s3://lakehouse/raw/customers", "parquet"),
-          DatasetConfig(
-            "customer_orders",
-            "output",
-            "s3://lakehouse/silver/customer_orders",
-            "delta",
+        inputs = Seq(
+          InputDatasetConfig(
+            name = "customers",
+            path = "s3://lakehouse/raw/customers",
+            format = "parquet",
+            filter = Some("is_active = true")
+          )
+        ),
+        outputs = Seq(
+          OutputDatasetConfig(
+            name = "customer_orders",
+            path = "s3://lakehouse/silver/customer_orders",
+            format = "delta",
             mode = Some("overwrite"),
-            partitionBy = Seq("order_date")
+            partitionBy = Seq("order_date"),
+            repartition = Some(24)
           )
         )
       )
     )
   }
 
-  test("extractDatasets validates dataset config by convention") {
+  test("extractDatasetCollection validates config by convention") {
     val error = intercept[IllegalArgumentException] {
-      SparkApp.extractDatasets(
+      SparkApp.extractDatasetCollection(
         DatasetConfigCaseClass(
-          Seq(
-            DatasetConfig(
-              "customers",
-              "input",
-              "s3://lakehouse/raw/customers",
-              "parquet",
-              mode = Some("overwrite")
+          outputs = Seq(
+            OutputDatasetConfig(
+              name = "customer_orders",
+              path = "s3://lakehouse/silver/customer_orders",
+              format = "delta",
+              repartition = Some(8),
+              coalesce = Some(2)
             )
           )
         )
       )
     }
 
-    assert(error.getMessage.contains("Input dataset 'customers' must not define mode"))
+    assert(error.getMessage.contains("must not define both repartition and coalesce"))
   }
 
-  test("AppContext exposes datasets by name") {
+  test("extractDatasetCollection rejects names reused across inputs and outputs") {
+    val error = intercept[IllegalArgumentException] {
+      SparkApp.extractDatasetCollection(
+        DatasetConfigCaseClass(
+          inputs = Seq(InputDatasetConfig("customers", "/tmp/customers", "parquet")),
+          outputs = Seq(OutputDatasetConfig("customers", "/tmp/customers-out", "delta"))
+        )
+      )
+    }
+
+    assert(error.getMessage.contains("unique across inputs and outputs"))
+  }
+
+  test("AppContext exposes inputs and outputs by name") {
     val ctx = AppContext(
       null,
       DatasetConfigCaseClass(
-        Seq(
-          DatasetConfig("customers", "input", "/tmp/customers", "parquet"),
-          DatasetConfig("customer_orders", "output", "/tmp/customer_orders", "delta")
-        )
+        inputs = Seq(InputDatasetConfig("customers", "/tmp/customers", "parquet")),
+        outputs = Seq(OutputDatasetConfig("customer_orders", "/tmp/customer_orders", "delta"))
       ),
       Seq("--env", "dev"),
       LoggerFactory.getLogger("AppContextTest")
     )
 
-    assert(ctx.dataset("customers").path == "/tmp/customers")
+    assert(ctx.input("customers").path == "/tmp/customers")
+    assert(ctx.output("customer_orders").path == "/tmp/customer_orders")
 
-    val error = intercept[IllegalArgumentException] {
-      ctx.dataset("missing")
+    val missingInput = intercept[IllegalArgumentException] {
+      ctx.input("missing")
+    }
+    val missingOutput = intercept[IllegalArgumentException] {
+      ctx.output("missing")
     }
 
-    assert(error.getMessage.contains("Dataset 'missing' is not defined"))
+    assert(missingInput.getMessage.contains("Input dataset 'missing'"))
+    assert(missingOutput.getMessage.contains("Output dataset 'missing'"))
   }
 
   test("main validates config before creating spark") {
@@ -278,13 +302,11 @@ class SparkAppTest extends AnyFunSuite {
     )
   }
 
-  test("main validates datasets before creating spark") {
+  test("main validates dataset config before creating spark") {
     val lifecycle = new DatasetRecordingLifecycle
     val app = new RecordingDatasetSparkApp(
       DatasetConfigCaseClass(
-        Seq(
-          DatasetConfig("customer_orders", "output", "/tmp/customer_orders", "delta", schemaPath = Some("schema.json"))
-        )
+        inputs = Seq(InputDatasetConfig("customers", "/tmp/customers", "parquet", filter = Some("   ")))
       ),
       lifecycle
     )
@@ -293,7 +315,7 @@ class SparkAppTest extends AnyFunSuite {
       app.main(Array("--config", "/tmp/app.yaml"))
     }
 
-    assert(error.getMessage.contains("must not define schemaPath"))
+    assert(error.getMessage.contains("filter must not be empty"))
     assert(!lifecycle.createCalled)
   }
 
@@ -422,10 +444,14 @@ object SparkAppTest {
     partitions: Int,
     sparkConfig: Map[String, String]
   ) extends SparkApp.HasSparkConfig
+
   final case class DatasetConfigCaseClass(
-    datasets: Seq[DatasetConfig]
-  ) extends SparkApp.HasDatasets
+    inputs: Seq[InputDatasetConfig] = Seq.empty,
+    outputs: Seq[OutputDatasetConfig] = Seq.empty
+  ) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets
+
   final case class NestedConfig(job: SampleConfig, owners: List[String], dryRun: Option[Boolean])
+
   final case class DefaultsConfig(
     job: SampleConfig,
     owners: List[String],

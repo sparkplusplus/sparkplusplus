@@ -32,5 +32,17 @@ package object sparkplusplus {
     def renameColumns(columnMapping: Map[String, String]): DataFrame = {
       DataFrameUtils.renameColumns(df, columnMapping)
     }
+
+    def flattenFields(): DataFrame = {
+      DataFrameUtils.flattenFields(df)
+    }
+
+    def makeColumnNamesAvroCompliant(
+      replaceWith: String = "_",
+      prefix: String = "",
+      suffix: String = ""
+    ): DataFrame = {
+      DataFrameUtils.makeColumnNamesAvroCompliant(df, replaceWith, prefix, suffix)
+    }
   }
 }

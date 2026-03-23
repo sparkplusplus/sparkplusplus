@@ -27,24 +27,18 @@ This example reads `customers` and `orders`, joins them, and writes a curated `c
 import io.github.sparkplusplus._
 import io.github.sparkplusplus.app.{AppContext, SparkApp}
 import org.apache.spark.sql.SparkSession
+import io.github.sparkplusplus.io.DatasetConfig
 import org.apache.spark.sql.functions.{col, lower, trim}
 
 final case class OrdersConfig(
-  customersPath: String,
-  ordersPath: String,
-  outputPath: String,
-  partitions: Int,
+  datasets: Seq[DatasetConfig],
   sparkConfig: Map[String, String] = Map.empty
-)
+) extends SparkApp.HasDatasets with SparkApp.HasSparkConfig
 
 object OrdersJob extends SparkApp[OrdersConfig] {
   override protected def appName: String = "orders-job"
 
   override protected def configClass: Class[OrdersConfig] = classOf[OrdersConfig]
-
-  override protected def validateConfig(config: OrdersConfig): Unit = {
-    require(config.partitions > 0, "partitions must be positive")
-  }
 
   override protected def configureSpark(
     builder: SparkSession.Builder,
@@ -55,18 +49,14 @@ object OrdersJob extends SparkApp[OrdersConfig] {
   }
 
   override protected def run(ctx: AppContext[OrdersConfig]): Unit = {
-    val customers = ctx.spark.read
-      .format("parquet")
-      .load(ctx.config.customersPath)
+    val customers = ctx.readDataset("customers")
       .select(
         col("customer_id"),
         trim(col("customer_name")).alias("customer_name"),
         col("customer_segment")
       )
 
-    val orders = ctx.spark.read
-      .format("parquet")
-      .load(ctx.config.ordersPath)
+    val orders = ctx.readDataset("orders")
       .select(
         col("order_id"),
         col("customer_id"),
@@ -79,10 +69,7 @@ object OrdersJob extends SparkApp[OrdersConfig] {
     val customerOrders = orders
       .join(customers, Seq("customer_id"), "left")
 
-    customerOrders.write
-      .format("delta")
-      .mode("overwrite")
-      .save(ctx.config.outputPath)
+    ctx.writeDataset(customerOrders, "customer_orders")
   }
 }
 ```
@@ -90,16 +77,27 @@ object OrdersJob extends SparkApp[OrdersConfig] {
 Example YAML:
 
 ```yaml
-customersPath: s3://lakehouse/raw/customers
-ordersPath: s3://lakehouse/raw/orders
-outputPath: s3://lakehouse/silver/customer_orders
-partitions: 200
+datasets:
+  - name: customers
+    type: input
+    path: s3://lakehouse/raw/customers
+    format: parquet
+  - name: orders
+    type: input
+    path: s3://lakehouse/raw/orders
+    format: parquet
+  - name: customer_orders
+    type: output
+    path: s3://lakehouse/silver/customer_orders
+    format: delta
+    mode: overwrite
 sparkConfig:
   spark.sql.shuffle.partitions: "200"
   spark.sql.session.timeZone: UTC
 ```
 
 In this example, `sparkConfig` is applied automatically to the Spark session before `configureSpark(...)` runs.
+The `datasets` list is also discovered automatically and made available through `ctx.readDataset(...)` and `ctx.writeDataset(...)`.
 
 ## Runtime Sequence
 

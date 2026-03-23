@@ -1,5 +1,6 @@
 package io.github.sparkplusplus.app
 
+import io.github.sparkplusplus.io.DatasetConfig
 import org.apache.spark.sql.SparkSession
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -19,6 +20,7 @@ abstract class SparkApp[C <: AnyRef] {
     val parsedArgs = parseArguments(args.toIndexedSeq)
     val config = loadConfig(parsedArgs.configPath)
     validateConfig(config)
+    SparkApp.extractDatasets(config)
 
     val logger = createLogger()
     beforeSparkStart(config, parsedArgs.passthroughArgs, logger)
@@ -157,6 +159,10 @@ object SparkApp {
     def sparkConfig: Map[String, String]
   }
 
+  trait HasDatasets {
+    def datasets: Seq[DatasetConfig]
+  }
+
   def extractSparkConfig(config: AnyRef): Map[String, String] = config match {
     case null => Map.empty
     case provider: HasSparkConfig => provider.sparkConfig
@@ -190,5 +196,41 @@ object SparkApp {
           }
       }
       .getOrElse(Map.empty)
+  }
+
+  def extractDatasets(config: AnyRef): Seq[DatasetConfig] = config match {
+    case null => Seq.empty
+    case provider: HasDatasets => DatasetConfig.validateAll(provider.datasets)
+    case _ =>
+      extractDatasetsByConvention(config)
+  }
+
+  private def extractDatasetsByConvention(config: AnyRef): Seq[DatasetConfig] = {
+    val configClass = config.getClass
+
+    try {
+      val method = configClass.getMethod("datasets")
+      if (method.getParameterCount != 0) {
+        Seq.empty
+      } else {
+        method.invoke(config) match {
+          case null => Seq.empty
+          case seq: Seq[_] =>
+            DatasetConfig.validateAll(seq.map {
+              case dataset: DatasetConfig => dataset
+              case other =>
+                throw new IllegalArgumentException(
+                  s"${configClass.getSimpleName}.datasets must contain DatasetConfig entries, found ${other.getClass.getName}"
+                )
+            })
+          case other =>
+            throw new IllegalArgumentException(
+              s"${configClass.getSimpleName}.datasets must return Seq[DatasetConfig], found ${other.getClass.getName}"
+            )
+        }
+      }
+    } catch {
+      case _: NoSuchMethodException => Seq.empty
+    }
   }
 }

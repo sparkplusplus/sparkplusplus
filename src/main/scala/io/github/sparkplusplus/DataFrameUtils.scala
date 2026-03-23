@@ -1,7 +1,9 @@
 package io.github.sparkplusplus
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{MetadataBuilder, StructField, StructType}
 
 object DataFrameUtils {
 
@@ -96,5 +98,90 @@ object DataFrameUtils {
         tempDf
       }
     }
+  }
+
+  /**
+   * Flatten nested struct columns into top-level columns using underscore-separated names.
+   * Example: `customer.id` becomes `customer_id`.
+   */
+  def flattenFields(df: DataFrame): DataFrame = {
+    def createAliases(field: StructField, ancestors: Seq[String] = Nil): Seq[(String, String)] =
+      field.dataType match {
+        case StructType(children) =>
+          children.flatMap(child => createAliases(child, ancestors :+ field.name))
+        case _ =>
+          val fullPath = ancestors :+ field.name
+          Seq(fullPath.mkString(".") -> fullPath.mkString("_"))
+      }
+
+    val selectColumns = df.schema.fields.toSeq
+      .flatMap(field => createAliases(field))
+      .map { case (originalPath, aliasedName) => new Column(originalPath).as(aliasedName) }
+
+    df.select(selectColumns: _*)
+  }
+
+  /**
+   * Rename DataFrame columns so they are Avro-compliant and keep the original name in metadata.
+   */
+  def makeColumnNamesAvroCompliant(
+    df: DataFrame,
+    replaceWith: String = "_",
+    prefix: String = "",
+    suffix: String = ""
+  ): DataFrame = {
+    val newSchema = StructType(df.schema.fields.map { field =>
+      val newFieldName = makeNameAvroCompliant(field.name, replaceWith, prefix, suffix)
+      val newMetadata =
+        new MetadataBuilder().withMetadata(field.metadata).putString("originalColumnName", field.name).build()
+      field.copy(name = newFieldName, metadata = newMetadata)
+    })
+
+    df.sparkSession.createDataFrame(df.rdd, newSchema)
+  }
+
+  private[sparkplusplus] def makeNameAvroCompliant(
+    string: String,
+    replaceWith: String,
+    prefix: String,
+    suffix: String
+  ): String = {
+    def acceptableFirstChar(char: Char): Boolean =
+      (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char == '_'
+
+    def acceptableTailChar(char: Char): Boolean = char.isDigit || acceptableFirstChar(char)
+
+    def illegalContentChars(value: String): Set[Char] = value.filterNot(acceptableTailChar).toSet
+
+    def requireFirstChar(value: String, printName: String): Unit =
+      require(
+        if (value.nonEmpty) acceptableFirstChar(value.head) else true,
+        s"The $printName starts with an illegal Avro character: '${value.head}'."
+      )
+
+    def requireContentChars(value: String, printName: String): Unit =
+      require(
+        if (value.nonEmpty) illegalContentChars(value).isEmpty else true,
+        s"The $printName contains illegal Avro character(s): '${illegalContentChars(value).mkString("'", ", ", "'")}'."
+      )
+
+    require(string.nonEmpty, "The input string can not be empty.")
+
+    if (prefix.nonEmpty) {
+      requireFirstChar(prefix, "prefix")
+      requireContentChars(prefix, "prefix")
+    } else {
+      requireFirstChar(replaceWith, "replacement string")
+    }
+
+    requireContentChars(replaceWith, "replacement string")
+    requireContentChars(suffix, "suffix")
+
+    val first = if (prefix.isEmpty && !acceptableFirstChar(string.head)) replaceWith else string.head.toString
+    val body = string.tail.toSeq.flatMap { char =>
+      if (acceptableTailChar(char)) Seq(char) else replaceWith
+    }.mkString
+
+    prefix + first + body + suffix
   }
 }

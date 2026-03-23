@@ -1,9 +1,8 @@
 const sidebars = {
   useCases: [
     'index',
+    'end-to-end-customer-orders',
     'customer-orders',
-    'customer-payment-summary',
-    'order-line-facts',
   ],
 };
 

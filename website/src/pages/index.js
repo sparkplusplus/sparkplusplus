@@ -29,7 +29,7 @@ function HomepageHeader() {
   return (
     <header className={styles.heroBanner}>
       <div className="container">
-        <p className={styles.kicker}>SparkPlusPlus Framework</p>
+        <p className={styles.kicker}>A Lightning fast Apache Spark Framework</p>
         <Heading as="h1" className={styles.heroTitle}>
           {siteConfig.title}
         </Heading>

@@ -7,13 +7,21 @@ This section shows practical SparkPlusPlus jobs built around common data enginee
 
 Current examples:
 
-- [Customers + Orders to `customer_orders`](./customer-orders.md)
-- [Customers + Payments to `customer_payment_summary`](./customer-payment-summary.md)
-- [Orders + Order Items to `order_line_facts`](./order-line-facts.md)
+- [End-to-end `customer_orders`](./end-to-end-customer-orders.md)
+- [Advanced `customer_orders` with schema and curated output](./customer-orders.md)
 
-Each example keeps the same framework shape:
+These two pages are intentionally different:
 
-- typed YAML config
+- `End-to-End Customer Orders`
+  - best starting point
+  - shows the full flow with the smallest useful app
+- `Advanced customer_orders`
+  - adds schema-controlled input and extra output cleanup
+  - useful when moving from a proof of concept to a production-style job
+
+Both examples keep the same framework shape:
+
+- `datasets` list in YAML
 - `SparkApp` entrypoint
 - Spark session settings from `sparkConfig`
-- application logic focused on joins and writes
+- application logic focused on joins, transforms, and `ctx.writeDataset(...)`

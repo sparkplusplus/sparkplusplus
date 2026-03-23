@@ -1,9 +1,10 @@
 package io.github.sparkplusplus.app
 
+import io.github.sparkplusplus.io.DatasetConfig
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
-import SparkAppTest.{DefaultsConfig, NestedConfig, SampleConfig, SparkConfigCaseClass}
+import SparkAppTest.{DatasetConfigCaseClass, DefaultsConfig, NestedConfig, SampleConfig, SparkConfigCaseClass}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -123,6 +124,84 @@ class SparkAppTest extends AnyFunSuite {
     )
   }
 
+  test("YamlConfigLoader supports datasets list") {
+    val path = writeTempFile(
+      """datasets:
+        |  - name: customers
+        |    type: input
+        |    path: s3://lakehouse/raw/customers
+        |    format: parquet
+        |  - name: customer_orders
+        |    type: output
+        |    path: s3://lakehouse/silver/customer_orders
+        |    format: delta
+        |    mode: overwrite
+        |    partitionBy:
+        |      - order_date
+        |""".stripMargin
+    )
+
+    val config = YamlConfigLoader.load(path, classOf[DatasetConfigCaseClass])
+
+    assert(
+      config == DatasetConfigCaseClass(
+        Seq(
+          DatasetConfig("customers", "input", "s3://lakehouse/raw/customers", "parquet"),
+          DatasetConfig(
+            "customer_orders",
+            "output",
+            "s3://lakehouse/silver/customer_orders",
+            "delta",
+            mode = Some("overwrite"),
+            partitionBy = Seq("order_date")
+          )
+        )
+      )
+    )
+  }
+
+  test("extractDatasets validates dataset config by convention") {
+    val error = intercept[IllegalArgumentException] {
+      SparkApp.extractDatasets(
+        DatasetConfigCaseClass(
+          Seq(
+            DatasetConfig(
+              "customers",
+              "input",
+              "s3://lakehouse/raw/customers",
+              "parquet",
+              mode = Some("overwrite")
+            )
+          )
+        )
+      )
+    }
+
+    assert(error.getMessage.contains("Input dataset 'customers' must not define mode"))
+  }
+
+  test("AppContext exposes datasets by name") {
+    val ctx = AppContext(
+      null,
+      DatasetConfigCaseClass(
+        Seq(
+          DatasetConfig("customers", "input", "/tmp/customers", "parquet"),
+          DatasetConfig("customer_orders", "output", "/tmp/customer_orders", "delta")
+        )
+      ),
+      Seq("--env", "dev"),
+      LoggerFactory.getLogger("AppContextTest")
+    )
+
+    assert(ctx.dataset("customers").path == "/tmp/customers")
+
+    val error = intercept[IllegalArgumentException] {
+      ctx.dataset("missing")
+    }
+
+    assert(error.getMessage.contains("Dataset 'missing' is not defined"))
+  }
+
   test("main validates config before creating spark") {
     val lifecycle = new RecordingLifecycle
     val app = new RecordingSparkApp(
@@ -197,6 +276,25 @@ class SparkAppTest extends AnyFunSuite {
         "spark.sql.session.timeZone" -> "UTC"
       )
     )
+  }
+
+  test("main validates datasets before creating spark") {
+    val lifecycle = new DatasetRecordingLifecycle
+    val app = new RecordingDatasetSparkApp(
+      DatasetConfigCaseClass(
+        Seq(
+          DatasetConfig("customer_orders", "output", "/tmp/customer_orders", "delta", schemaPath = Some("schema.json"))
+        )
+      ),
+      lifecycle
+    )
+
+    val error = intercept[IllegalArgumentException] {
+      app.main(Array("--config", "/tmp/app.yaml"))
+    }
+
+    assert(error.getMessage.contains("must not define schemaPath"))
+    assert(!lifecycle.createCalled)
   }
 
   private def writeTempFile(contents: String): Path = {
@@ -275,6 +373,41 @@ class SparkAppTest extends AnyFunSuite {
       stopFailure = Option(runFailure)
     }
   }
+
+  private final class RecordingDatasetSparkApp(
+    config: DatasetConfigCaseClass,
+    lifecycle: DatasetRecordingLifecycle
+  ) extends SparkApp[DatasetConfigCaseClass] {
+
+    override protected def appName: String = "dataset-recording-app"
+
+    override protected def configClass: Class[DatasetConfigCaseClass] = classOf[DatasetConfigCaseClass]
+
+    override protected def loadConfig(configPath: String): DatasetConfigCaseClass = config
+
+    override protected def run(ctx: AppContext[DatasetConfigCaseClass]): Unit = ()
+
+    override protected def createLogger(): Logger = LoggerFactory.getLogger("DatasetSparkAppTest")
+
+    override protected[app] def sparkLifecycle: SparkApp.SparkLifecycle[DatasetConfigCaseClass] = lifecycle
+  }
+
+  private final class DatasetRecordingLifecycle extends SparkApp.SparkLifecycle[DatasetConfigCaseClass] {
+    var createCalled = false
+
+    override def create(
+      appName: String,
+      config: DatasetConfigCaseClass,
+      sparkConfig: Map[String, String],
+      logger: Logger,
+      configureSpark: (SparkSession.Builder, DatasetConfigCaseClass) => SparkSession.Builder
+    ): SparkSession = {
+      createCalled = true
+      null.asInstanceOf[SparkSession]
+    }
+
+    override def stop(spark: SparkSession, runFailure: Throwable, logger: Logger): Unit = ()
+  }
 }
 
 object SparkAppTest {
@@ -289,6 +422,9 @@ object SparkAppTest {
     partitions: Int,
     sparkConfig: Map[String, String]
   ) extends SparkApp.HasSparkConfig
+  final case class DatasetConfigCaseClass(
+    datasets: Seq[DatasetConfig]
+  ) extends SparkApp.HasDatasets
   final case class NestedConfig(job: SampleConfig, owners: List[String], dryRun: Option[Boolean])
   final case class DefaultsConfig(
     job: SampleConfig,

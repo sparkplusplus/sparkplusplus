@@ -10,6 +10,7 @@ SparkPlusPlus is designed for teams that want a light framework on top of Apache
 - `SparkApp[C]` as the standard application entrypoint
 - `AppContext[C]` carrying `SparkSession`, typed config, CLI passthrough args, and logger
 - YAML config decoding into Scala case classes
+- simple dataset-based IO through `ctx.readDataset(...)` and `ctx.writeDataset(...)`
 - `DataFrameUtils` and implicit DataFrame extensions
 
 ## Typical Flow
@@ -34,8 +35,11 @@ If you want a fuller example, see [Use Case Examples](/use-cases/).
 
 ```scala
 import io.github.sparkplusplus.app.{AppContext, SparkApp}
+import io.github.sparkplusplus.io.DatasetConfig
 
-final case class ExampleConfig(input: String, output: String)
+final case class ExampleConfig(
+  datasets: Seq[DatasetConfig]
+) extends SparkApp.HasDatasets
 
 object ExampleJob extends SparkApp[ExampleConfig] {
   override protected def appName: String = "example-job"
@@ -43,8 +47,23 @@ object ExampleJob extends SparkApp[ExampleConfig] {
   override protected def configClass: Class[ExampleConfig] = classOf[ExampleConfig]
 
   override protected def run(ctx: AppContext[ExampleConfig]): Unit = {
-    val df = ctx.spark.read.parquet(ctx.config.input)
-    df.write.mode("overwrite").parquet(ctx.config.output)
+    val df = ctx.readDataset("input_orders")
+    ctx.writeDataset(df, "output_orders")
   }
 }
+```
+
+Matching YAML:
+
+```yaml
+datasets:
+  - name: input_orders
+    type: input
+    path: s3://bucket/raw/orders
+    format: parquet
+  - name: output_orders
+    type: output
+    path: s3://bucket/curated/orders
+    format: parquet
+    mode: overwrite
 ```

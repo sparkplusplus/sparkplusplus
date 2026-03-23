@@ -11,7 +11,9 @@ SparkPlusPlus also includes a utility layer for common `DataFrame` tasks.
 - `addRowNumber`
 - `countNulls`
 - `getBasicStats`
-- `renameColumns`/
+- `renameColumns`
+- `flattenFields`
+- `makeColumnNamesAvroCompliant`
 
 ## Object API
 

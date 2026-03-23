@@ -34,6 +34,19 @@ const config = {
   ],
 
   plugins: [
+    function liveReloadOnlyDevServerPlugin() {
+      return {
+        name: 'live-reload-only-dev-server',
+        configureWebpack() {
+          return {
+            devServer: {
+              hot: false,
+              liveReload: true,
+            },
+          };
+        },
+      };
+    },
     [
       '@docusaurus/plugin-content-docs',
       {

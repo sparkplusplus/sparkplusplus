@@ -1,14 +1,5 @@
 .DEFAULT_GOAL := test # default command to run with just `make`
 
-docs:
-	cd website && npm run dev
-
-docs-poll:
-	cd website && npm run dev:poll
-
-docs-build:
-	cd website && npm run build
-
 test212:
 	mvn clean test -Pscala-2.12
 

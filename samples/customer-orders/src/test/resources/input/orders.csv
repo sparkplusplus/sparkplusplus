@@ -1,0 +1,4 @@
+order_id,customer_id,order_status,order_total,created_at
+o-100,c-001, Completed ,125.5,2026-03-24
+o-100,c-001, Completed ,125.5,2026-03-24
+o-102,c-003, Processing ,42.0,2026-03-26

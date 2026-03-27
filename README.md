@@ -264,32 +264,28 @@ The repository contains both:
 
 In restricted environments where a local Spark runtime cannot bind ports, the Spark-backed tests are excluded by default from `mvn test`.
 
+## Runnable Sample
+
+The repository now includes a standalone Maven sample at [samples/customer-orders](samples/customer-orders).
+
+It implements the documented `customer_orders` use case as a full Scala project with:
+
+- its own `pom.xml`
+- YAML config and schema files
+- local input fixtures
+- a Spark-backed end-to-end test
+
+Install the root library snapshot first, then build or run the sample from its directory:
+
+```bash
+mvn install -DskipTests
+cd samples/customer-orders
+mvn test
+mvn exec:java -Dexec.args="--config conf/customer-orders-local.yaml"
+```
+
 ## Documentation Site
-
-This repository also contains the public documentation site source under `website/`.
-
-To work on the docs locally:
-
-```bash
-cd website
-npm install
-npm run dev
-```
-
-The docs dev server supports hot reload, so page and markdown changes should refresh automatically.
-
-If filesystem watching is unreliable in your environment, use:
-
-```bash
-cd website
-npm run dev:poll
-```
-
-To create a production build:
-
-```bash
-cd website
-npm run build
+The public documentation site source now lives in the separate `sparkplusplus.github.io` repository at `https://github.com/sparkplusplus`.
 ```
 
 The intended public site domain is `https://sparkplusplus.github.io/`.

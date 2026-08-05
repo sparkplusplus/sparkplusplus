@@ -1,206 +1,295 @@
-# Spark Utils Library
+# SparkPlusPlus
 
-A utility library for Apache Spark with DataFrame operations that supports both Scala 2.12 and 2.13.
+SparkPlusPlus is a Scala framework for building Apache Spark applications with less boilerplate and a more consistent runtime model.
+
+The first framework layer is `SparkApp`, an abstract base class that standardizes:
+
+- YAML-based application config
+- `SparkSession` creation
+- application logging
+- argument parsing
+- consistent shutdown behavior
+- config-driven IO helpers
+
+On top of that, `SparkETLApp` gives you a faster ETL-oriented path with `extract()`, `transform()`, and `load()`.
+
+The existing `DataFrameUtils` helpers remain available as a utility layer inside your apps.
+`SchemaUtils` adds schema derivation, loading, and recursive schema inspection helpers inspired by the reference `spark-utils` project.
 
 ## Features
 
-This library provides utility methods for common DataFrame operations:
+- `SparkApp[C]` for custom batch Spark jobs with typed config
+- `SparkETLApp[C]` for framework-managed ETL jobs
+- `AppContext[C]` to provide `SparkSession`, config, logger, and passthrough args
+- YAML config loading with strict unknown-field validation
+- `DataFrame` helper methods via `DataFrameUtils` and implicit extensions
+- `SchemaUtils` helpers for deriving, loading, and validating Spark schemas
+- separate `inputs` and `outputs` config for file-based IO definitions
 
-- **dedup**: Remove duplicate rows from a DataFrame
-- **addRowNumber**: Add a row number column to the DataFrame
-- **countNulls**: Count null values in each column
-- **getBasicStats**: Get basic statistics for numeric columns
-- **renameColumns**: Rename columns using a mapping
+## Installation
 
-## Project Structure
-
-```
-spark-utils/
-├── pom.xml
-├── src/
-│   ├── main/
-│   │   └── scala/
-│   │       └── com/
-│   │           └── yourcompany/
-│   │               └── sparkutils/
-│   │                   ├── DataFrameUtils.scala
-│   │                   └── package.scala
-│   └── test/
-│       └── scala/
-│           └── com/
-│               └── yourcompany/
-│                   └── sparkutils/
-│                       └── DataFrameUtilsTest.scala
-└── README.md
+```xml
+<dependency>
+  <groupId>io.github.sparkplusplus</groupId>
+  <artifactId>sparkplusplus_2.12</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+</dependency>
 ```
 
-## Build Instructions
+Spark should usually be provided by your runtime environment:
 
-### Prerequisites
+```xml
+<dependency>
+  <groupId>org.apache.spark</groupId>
+  <artifactId>spark-sql_2.12</artifactId>
+  <version>3.4.1</version>
+  <scope>provided</scope>
+</dependency>
+```
 
-- Java 8 or higher
-- Maven 3.6 or higher
-- Apache Spark 3.4.1
+## SparkETLApp Example
 
-### Building for Scala 2.12 (default)
+```scala
+package example
+
+import io.github.sparkplusplus._
+import io.github.sparkplusplus.app.{AppContext, SparkApp, SparkETLApp}
+import io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
+import org.apache.spark.sql.SparkSession
+
+final case class OrdersConfig(
+  inputs: Seq[InputDatasetConfig],
+  outputs: Seq[OutputDatasetConfig],
+  sparkConfig: Map[String, String] = Map.empty
+) extends SparkApp.WithInputDatasets with SparkApp.WithOutputDatasets with SparkApp.HasSparkConfig
+
+object OrdersJob extends SparkETLApp[OrdersConfig] {
+
+  override protected def appName: String = "orders-job"
+
+  override protected def configClass: Class[OrdersConfig] = classOf[OrdersConfig]
+
+  override protected def configureSpark(
+    builder: SparkSession.Builder,
+    config: OrdersConfig
+  ): SparkSession.Builder = {
+    builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+  }
+
+  override protected def transform(
+    ctx: AppContext[OrdersConfig],
+    inputs: Map[String, org.apache.spark.sql.DataFrame]
+  ): Map[String, org.apache.spark.sql.DataFrame] = {
+    val customers = inputs("customers")
+    val orders = inputs("orders").dedup("order_id")
+
+    val customerOrders = orders.join(customers, Seq("customer_id"), "left")
+
+    Map("customer_orders" -> customerOrders)
+  }
+}
+```
+
+Run the app with:
 
 ```bash
-mvn clean compile
-mvn clean package
+spark-submit \
+  --class example.OrdersJob \
+  your-app.jar \
+  --config conf/orders.yaml \
+  --env dev
 ```
 
-### Building for Scala 2.13
+Example YAML config:
 
-```bash
-mvn clean compile -Pscala-2.13
-mvn clean package -Pscala-2.13
+```yaml
+inputs:
+  - name: customers
+    path: s3://bucket/customers/input
+    format: parquet
+    filter: is_active = true
+  - name: orders
+    path: s3://bucket/orders/input
+    format: parquet
+outputs:
+  - name: customer_orders
+    path: s3://bucket/orders/output
+    format: delta
+    mode: overwrite
+    partitionBy:
+      - order_date
+    repartition: 200
+sparkConfig:
+  spark.sql.shuffle.partitions: "200"
+  spark.sql.session.timeZone: UTC
 ```
 
-### Running Tests
+Inside `transform`, passthrough args after `--config` are available through `ctx.args`.
+
+## Dataset IO
+
+SparkPlusPlus keeps file IO config in two simple sections:
+
+- `inputs` for read-only datasets
+- `outputs` for write targets
+
+At runtime:
+
+```scala
+val customers = ctx.readInput("customers")
+val orders = ctx.readInput("orders")
+
+val customerOrders = orders.join(customers, Seq("customer_id"))
+
+ctx.writeOutput(customerOrders, "customer_orders")
+```
+
+Validation rules:
+
+- names must be unique within and across `inputs` and `outputs`
+- input datasets can use `schemaPath`, `schemaJson`, `filter`, and reader `options`
+- output datasets can use `mode`, `partitionBy`, `repartition`, `coalesce`, and writer `options`
+- `repartition` and `coalesce` are mutually exclusive
+- invalid field combinations fail before Spark starts
+
+## SparkApp vs SparkETLApp
+
+Use `SparkETLApp` when you want the framework to:
+
+- read all configured inputs
+- call your transformation logic
+- write all configured outputs
+
+Use `SparkApp` when you want full lifecycle control and prefer writing `run(ctx)` yourself.
+
+## DataFrame Utilities
+
+SparkPlusPlus still includes utility methods for common `DataFrame` operations:
+
+- `dedup`
+- `addRowNumber`
+- `countNulls`
+- `getBasicStats`
+- `renameColumns`
+- `flattenFields`
+- `makeColumnNamesAvroCompliant`
+
+Example:
+
+```scala
+import io.github.sparkplusplus._
+
+val deduped = df.dedup("order_id")
+val numbered = df.addRowNumber("row_id", "created_at")
+val flattened = df.flattenFields()
+val avroSafe = df.makeColumnNamesAvroCompliant()
+```
+
+Flattening nested structs is useful when preparing joined business datasets for curated outputs:
+
+```scala
+import org.apache.spark.sql.functions.struct
+
+val customerOrders = orders
+  .join(customers, Seq("customer_id"))
+  .select(
+    $"order_id",
+    struct(
+      $"customer_id",
+      $"customer_name",
+      $"customer_tier"
+    ).alias("customer"),
+    struct(
+      $"order_total",
+      $"order_status"
+    ).alias("order")
+  )
+
+val curated = customerOrders
+  .flattenFields()
+  .makeColumnNamesAvroCompliant()
+
+curated.write.format("delta").mode("overwrite").save(outputPath)
+```
+
+## Schema Utilities
+
+`SchemaUtils` provides a light schema toolkit on top of Spark SQL:
+
+- derive `StructType` from Scala case classes
+- load schema JSON from a string or file
+- recursively transform nested fields
+- validate nested schemas with `checkAllFields` and `checkAnyFields`
+
+Example:
+
+```scala
+import io.github.sparkplusplus.SchemaUtils
+import org.apache.spark.sql.types.StructType
+
+final case class CustomerRecord(customer_id: String, customer_name: String)
+
+val schema: StructType = SchemaUtils.schemaFor[CustomerRecord]
+val schemaFromFile = SchemaUtils.loadSchemaFromFile("schemas/customer_orders.json").get
+
+val renamedSchema = SchemaUtils.mapFields(schemaFromFile, field =>
+  field.copy(name = field.name.replace(' ', '_'))
+)
+
+val hasNullableIds = SchemaUtils.checkAnyFields(renamedSchema, field =>
+  field.name == "customer_id" && field.nullable
+)
+```
+
+## Build
 
 ```bash
-# For Scala 2.12
 mvn test
-
-# For Scala 2.13
-mvn test -Pscala-2.13
+mvn package
 ```
 
-### Building Both Versions
+For Scala 2.13:
 
 ```bash
-# Build for Scala 2.12
-mvn clean package -Pscala-2.12
-
-# Build for Scala 2.13
-mvn clean package -Pscala-2.13
+mvn test -Pscala-2.13
+mvn package -Pscala-2.13
 ```
 
-### Publishing Note
+## Testing Notes
 
-Publishing uses concrete Maven coordinates per Scala binary version (`sparkplusplus_2.12` and `sparkplusplus_2.13`).
-The 2.13 publish path temporarily rewrites `<artifactId>` during deploy to keep Sonatype Central filename validation consistent.
+The repository contains both:
 
-## Usage
+- pure unit tests for framework behavior
+- Spark-backed integration tests for `DataFrameUtils`
 
-### Using Object Methods
+In restricted environments where a local Spark runtime cannot bind ports, the Spark-backed tests are excluded by default from `mvn test`.
 
-```scala
-import org.apache.spark.sql.SparkSession
-import com.yourcompany.sparkutils.DataFrameUtils
+## Runnable Sample
 
-val spark = SparkSession.builder()
-  .appName("SparkUtilsExample")
-  .master("local[*]")
-  .getOrCreate()
+The repository now includes a standalone Maven sample at [samples/customer-orders](samples/customer-orders).
 
-import spark.implicits._
+It implements the documented `customer_orders` use case as a full Scala project with:
 
-val df = Seq(
-  ("Alice", 25, "Engineer"),
-  ("Bob", 30, "Manager"),
-  ("Alice", 25, "Engineer")
-).toDF("name", "age", "role")
+- its own `pom.xml`
+- YAML config and schema files
+- local input fixtures
+- a Spark-backed end-to-end test
 
-// Remove duplicates
-val dedupedDf = DataFrameUtils.dedup(df)
+Install the root library snapshot first, then build or run the sample from its directory:
 
-// Add row number
-val withRowNum = DataFrameUtils.addRowNumber(df, "id", Seq("age"))
-
-// Count nulls
-val nullCounts = DataFrameUtils.countNulls(df)
-
-// Get basic statistics
-val stats = DataFrameUtils.getBasicStats(df)
-
-// Rename columns
-val renamedDf = DataFrameUtils.renameColumns(df, Map("name" -> "full_name"))
+```bash
+mvn install -DskipTests
+cd samples/customer-orders
+mvn test
+mvn exec:java -Dexec.args="--config conf/customer-orders-local.yaml"
 ```
 
-### Using Implicit Extensions
-
-```scala
-import org.apache.spark.sql.SparkSession
-import com.yourcompany.sparkutils._
-
-val spark = SparkSession.builder()
-  .appName("SparkUtilsExample")
-  .master("local[*]")
-  .getOrCreate()
-
-import spark.implicits._
-
-val df = Seq(
-  ("Alice", 25, "Engineer"),
-  ("Bob", 30, "Manager"),
-  ("Alice", 25, "Engineer")
-).toDF("name", "age", "role")
-
-// Using implicit extensions
-val dedupedDf = df.dedup()
-val withRowNum = df.addRowNumber("age")
-val nullCounts = df.countNulls()
-val stats = df.getBasicStats()
-val renamedDf = df.renameColumns(Map("name" -> "full_name"))
+## Documentation Site
+The public documentation site source now lives in the separate `sparkplusplus.github.io` repository at `https://github.com/sparkplusplus`.
 ```
 
-## API Reference
-
-### DataFrameUtils Object Methods
-
-#### dedup(df: DataFrame, columns: Seq[String] = Seq.empty): DataFrame
-Remove duplicate rows from a DataFrame.
-- `df`: Input DataFrame
-- `columns`: Optional list of columns to consider for deduplication
-- Returns: DataFrame with duplicates removed
-
-#### addRowNumber(df: DataFrame, columnName: String = "row_number", orderBy: Seq[String] = Seq.empty): DataFrame
-Add a row number column to the DataFrame.
-- `df`: Input DataFrame
-- `columnName`: Name of the row number column (default: "row_number")
-- `orderBy`: Optional columns to order by
-- Returns: DataFrame with row number column added
-
-#### countNulls(df: DataFrame): DataFrame
-Count null values in each column.
-- `df`: Input DataFrame
-- Returns: DataFrame with column names and their null counts
-
-#### getBasicStats(df: DataFrame): DataFrame
-Get basic statistics for numeric columns.
-- `df`: Input DataFrame
-- Returns: DataFrame with basic statistics
-
-#### renameColumns(df: DataFrame, columnMapping: Map[String, String]): DataFrame
-Rename columns using a mapping.
-- `df`: Input DataFrame
-- `columnMapping`: Map of old column names to new column names
-- Returns: DataFrame with renamed columns
-
-### Implicit Extensions
-
-When you import `com.yourcompany.sparkutils._`, the following methods are added to DataFrame:
-
-- `df.dedup(columns: String*)`
-- `df.addRowNumber(columnName: String, orderBy: String*)`
-- `df.addRowNumber(orderBy: String*)`
-- `df.countNulls()`
-- `df.getBasicStats()`
-- `df.renameColumns(columnMapping: Map[String, String])`
-
-## Dependencies
-
-- Scala 2.12.17 or 2.13.10
-- Apache Spark 3.4.1
-- ScalaTest 3.2.15 (for testing)
-
-## Generated Artifacts
-
-The build process generates JARs with Scala binary version in their names:
-- `spark-utils_2.12-1.0.0.jar` (for Scala 2.12)
-- `spark-utils_2.13-1.0.0.jar` (for Scala 2.13)
+The intended public site domain is `https://sparkplusplus.github.io/`.
 
 ## License
 
-This project is licensed under the Apache License 2.0.
+Apache License 2.0

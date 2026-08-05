@@ -1,0 +1,29 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "name": "customer_id",
+      "type": "string",
+      "nullable": false,
+      "metadata": {}
+    },
+    {
+      "name": "customer_name",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "customer_segment",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "customer_status",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    }
+  ]
+}

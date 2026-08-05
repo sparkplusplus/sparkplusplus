@@ -71,7 +71,7 @@
 
     <!-- Spark version -->
     <spark.version>3.4.1</spark.version>
-    <slf4j.version>2.0.13</slf4j.version>
+    <slf4j.version>2.0.18</slf4j.version>
     <scalatest.tagsToExclude>io.github.sparkplusplus.RequiresSparkRuntime</scalatest.tagsToExclude>
     <snakeyaml.version>1.33</snakeyaml.version>
 

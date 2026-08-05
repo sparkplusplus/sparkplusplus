@@ -103,6 +103,8 @@ public final class SparkPlusPlusCli {
           <dependency><groupId>org.scalatest</groupId><artifactId>scalatest_${scala.binary.version}</artifactId><version>${scalatest.version}</version><scope>test</scope></dependency>
         </dependencies>
         <build><sourceDirectory>src/main/scala</sourceDirectory><testSourceDirectory>src/test/scala</testSourceDirectory><plugins>
+          <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>3.3.1</version></plugin>
+          <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.2.5</version><configuration><skipTests>true</skipTests></configuration></plugin>
           <plugin><groupId>net.alchim31.maven</groupId><artifactId>scala-maven-plugin</artifactId><version>4.8.1</version><executions><execution><goals><goal>compile</goal><goal>testCompile</goal></goals></execution></executions><configuration><scalaVersion>${scala.version}</scalaVersion></configuration></plugin>
           <plugin><groupId>org.scalatest</groupId><artifactId>scalatest-maven-plugin</artifactId><version>2.2.0</version><executions><execution><id>test</id><goals><goal>test</goal></goals></execution></executions></plugin>
           <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-shade-plugin</artifactId><version>3.5.3</version><executions><execution><phase>package</phase><goals><goal>shade</goal></goals><configuration><createDependencyReducedPom>false</createDependencyReducedPom></configuration></execution></executions></plugin>

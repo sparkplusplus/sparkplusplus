@@ -13,16 +13,15 @@ jobs:
       matrix:
         include:
           - scala-profile: scala-2.12
-            artifact-id: sparkplusplus_2.12
           - scala-profile: scala-2.13
-            artifact-id: sparkplusplus_2.13
     steps:
       - uses: actions/checkout@v4
-      # Keep artifactId constant in pom.xml by default (2.12), then switch per matrix job.
-      # This avoids expression-based artifactId issues that Central can reject.
-      - name: Set artifactId for ${{ matrix.scala-profile }}
+      - name: Set Scala 2.13 artifact coordinates
+        if: matrix.scala-profile == 'scala-2.13'
         run: |
-          sed -i "s|<artifactId>sparkplusplus_2.12</artifactId>|<artifactId>${{ matrix.artifact-id }}</artifactId>|" pom.xml
+          for pom in sparkplusplus-core/pom.xml sparkplusplus-config/pom.xml sparkplusplus-testkit/pom.xml sparkplusplus-cli/pom.xml; do
+            sed -i 's|_2.12|_2.13|g' "$pom"
+          done
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
         with:

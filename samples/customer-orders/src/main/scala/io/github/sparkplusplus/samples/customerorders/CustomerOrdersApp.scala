@@ -1,18 +1,13 @@
 package io.github.sparkplusplus.samples.customerorders
 
 import _root_.io.github.sparkplusplus._
-import _root_.io.github.sparkplusplus.app.{AppContext, SparkApp, SparkETLApp}
+import _root_.io.github.sparkplusplus.app.AppContext
+import _root_.io.github.sparkplusplus.config.{FrameworkConfig, FrameworkSparkETLApp}
 import _root_.io.github.sparkplusplus.io.{InputDatasetConfig, OutputDatasetConfig}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.{col, lower, struct, to_date, trim}
 
-final case class CustomerOrdersConfig(
-  inputs: Seq[InputDatasetConfig],
-  outputs: Seq[OutputDatasetConfig],
-  sparkConfig: Map[String, String] = Map.empty
-) extends SparkApp.WithInputDatasets
-    with SparkApp.WithOutputDatasets
-    with SparkApp.HasSparkConfig
+final case class CustomerOrdersSettings(owner: String)
 
 object CustomerOrdersTransform {
 
@@ -54,16 +49,14 @@ object CustomerOrdersTransform {
   }
 }
 
-object CustomerOrdersApp extends SparkETLApp[CustomerOrdersConfig] {
+object CustomerOrdersApp extends FrameworkSparkETLApp[CustomerOrdersSettings] {
 
   private val RequiredInputs = Set("customers", "orders")
   private val RequiredOutputs = Set("customer_orders")
 
-  override protected def appName: String = "customer-orders-app"
+  override protected def applicationSettingsClass: Class[CustomerOrdersSettings] = classOf[CustomerOrdersSettings]
 
-  override protected def configClass: Class[CustomerOrdersConfig] = classOf[CustomerOrdersConfig]
-
-  override protected def validateConfig(config: CustomerOrdersConfig): Unit = {
+  override protected def validateConfig(config: FrameworkConfig[CustomerOrdersSettings]): Unit = {
     val inputNames = config.inputs.map(_.name).toSet
     val outputNames = config.outputs.map(_.name).toSet
 
@@ -78,7 +71,8 @@ object CustomerOrdersApp extends SparkETLApp[CustomerOrdersConfig] {
   }
 
   override protected def transform(
-    ctx: AppContext[CustomerOrdersConfig],
+    ctx: AppContext[FrameworkConfig[CustomerOrdersSettings]],
+    settings: CustomerOrdersSettings,
     inputs: Map[String, DataFrame]
   ): Map[String, DataFrame] = {
     val customerOrders = CustomerOrdersTransform.build(

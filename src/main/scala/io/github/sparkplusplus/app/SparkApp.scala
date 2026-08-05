@@ -8,6 +8,8 @@ abstract class SparkApp[C <: AnyRef] {
 
   protected def appName: String
 
+  protected def appVersion: String = "unknown"
+
   protected def configClass: Class[C]
 
   protected def configureSpark(builder: SparkSession.Builder, config: C): SparkSession.Builder = builder
@@ -20,10 +22,19 @@ abstract class SparkApp[C <: AnyRef] {
     val parsedArgs = parseArguments(args.toIndexedSeq)
     val config = loadConfig(parsedArgs.configPath)
     validateConfig(config)
-    SparkApp.extractDatasetCollection(config)
+    val datasets = SparkApp.extractDatasetCollection(config)
 
     val logger = createLogger()
     beforeSparkStart(config, parsedArgs.passthroughArgs, logger)
+    val runRecord = RunRecord.started(
+      appName,
+      appVersion,
+      parsedArgs.configPath,
+      datasets.inputs.map(_.name),
+      datasets.outputs.map(_.name)
+    )
+    logger.info("sparkplusplus.run {}", runRecord.toJson)
+
     val spark = sparkLifecycle.create(
       appName,
       config,
@@ -31,7 +42,7 @@ abstract class SparkApp[C <: AnyRef] {
       logger,
       configureSpark
     )
-    val context = AppContext(spark, config, parsedArgs.passthroughArgs, logger)
+    val context = AppContext(spark, config, parsedArgs.passthroughArgs, logger, Some(runRecord))
 
     var runFailure: Throwable = null
 
@@ -39,10 +50,12 @@ abstract class SparkApp[C <: AnyRef] {
       logger.info("Starting Spark application {}", appName)
       run(context)
       logger.info("Completed Spark application {}", appName)
+      logger.info("sparkplusplus.run {}", runRecord.completed(Option(spark).map(_.version)).toJson)
     } catch {
       case throwable: Throwable =>
         runFailure = throwable
         logger.error(s"Spark application $appName failed", throwable)
+        logger.error("sparkplusplus.run {}", runRecord.failed(Option(spark).map(_.version), throwable).toJson)
         throw throwable
     } finally {
       sparkLifecycle.stop(spark, runFailure, logger)

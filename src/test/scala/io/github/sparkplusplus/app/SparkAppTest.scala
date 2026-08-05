@@ -254,6 +254,12 @@ class SparkAppTest extends AnyFunSuite {
     assert(app.ran)
     assert(app.receivedConfig.contains(SampleConfig("orders", 4)))
     assert(app.receivedArgs.contains(Seq("--env", "dev")))
+    assert(app.receivedRunRecord.exists(record =>
+      record.applicationName == "recording-app" &&
+        record.inputNames.isEmpty &&
+        record.outputNames.isEmpty &&
+        record.configFingerprint == "unavailable"
+    ))
     assert(lifecycle.createCalled)
     assert(lifecycle.stopCalled)
     assert(lifecycle.stopFailure.isEmpty)
@@ -336,6 +342,7 @@ class SparkAppTest extends AnyFunSuite {
     var ran = false
     var receivedConfig: Option[SampleConfig] = None
     var receivedArgs: Option[Seq[String]] = None
+    var receivedRunRecord: Option[RunRecord] = None
 
     override protected def appName: String = "recording-app"
 
@@ -360,6 +367,7 @@ class SparkAppTest extends AnyFunSuite {
       ran = true
       receivedConfig = Some(ctx.config)
       receivedArgs = Some(ctx.args)
+      receivedRunRecord = ctx.runRecord
       runFailure.foreach(throw _)
     }
 

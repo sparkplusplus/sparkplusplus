@@ -4,24 +4,22 @@
 
 ### Why we replace `artifactId` with `sed` for Scala 2.13
 
-We publish two Maven coordinates from one project:
+We publish Scala-specific coordinates for each module:
 
-* `io.github.sparkplusplus:sparkplusplus_2.12:<version>`
-* `io.github.sparkplusplus:sparkplusplus_2.13:<version>`
+* `sparkplusplus-core_2.12` and `sparkplusplus-core_2.13`
+* `sparkplusplus-config_2.12` and `sparkplusplus-config_2.13`
+* `sparkplusplus-testkit_2.12` and `sparkplusplus-testkit_2.13`
+* `sparkplusplus-cli_2.12` and `sparkplusplus-cli_2.13`
 
-This repository uses a single-module `pom.xml`, and Maven expects `<artifactId>` to be a constant value in the model. Earlier we used:
-
-* `<artifactId>sparkplusplus_${scala.binary.version}</artifactId>`
-
-That looked convenient but caused Central validation issues. Sonatype validates uploaded filenames against the effective POM, and this expression-based `artifactId` led to filename mismatches (for example `.jar`, `.pom`, `.asc`, `.sha256` reported as invalid).
+This repository uses a Maven reactor. Maven Central requires a constant `<artifactId>` in each published POM; expression-based artifact IDs can cause filename validation failures.
 
 To avoid that:
 
-1. Keep `pom.xml` with a constant baseline artifactId: `sparkplusplus_2.12`
-2. For Scala 2.13 publishing only, temporarily replace the artifactId with `sparkplusplus_2.13` right before `mvn deploy`
-3. Restore `pom.xml` immediately after deploy
+1. Keep every module POM at its Scala 2.12 coordinate by default.
+2. For Scala 2.13 publishing only, temporarily replace `_2.12` with `_2.13` in the four module POMs before `mvn deploy`.
+3. Restore the module POMs immediately after deployment.
 
-This is why both GitHub Actions and `make snapshot213` use a small `sed` replacement step.
+This is why both GitHub Actions and `make snapshot213` use a small replacement step.
 
 Notes:
 

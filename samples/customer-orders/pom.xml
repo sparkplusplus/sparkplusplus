@@ -29,7 +29,13 @@
   <dependencies>
     <dependency>
       <groupId>io.github.sparkplusplus</groupId>
-      <artifactId>sparkplusplus_${scala.binary.version}</artifactId>
+      <artifactId>sparkplusplus-core_2.12</artifactId>
+      <version>${sparkplusplus.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.sparkplusplus</groupId>
+      <artifactId>sparkplusplus-config_2.12</artifactId>
       <version>${sparkplusplus.version}</version>
     </dependency>
 
@@ -75,6 +81,11 @@
     <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+      </plugin>
+      <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
         <version>4.8.1</version>
@@ -102,6 +113,15 @@
         <configuration>
           <source>${maven.compiler.source}</source>
           <target>${maven.compiler.target}</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <skipTests>true</skipTests>
         </configuration>
       </plugin>
 

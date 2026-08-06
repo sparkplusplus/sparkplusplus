@@ -21,7 +21,7 @@ The existing `DataFrameUtils` helpers remain available as a utility layer inside
 - `SparkApp[C]` for custom batch Spark jobs with typed config
 - `SparkETLApp[C]` for framework-managed ETL jobs
 - `AppContext[C]` to provide `SparkSession`, config, logger, and passthrough args
-- YAML config loading with strict unknown-field validation
+- versioned YAML config loading with strict unknown-field validation
 - `DataFrame` helper methods via `DataFrameUtils` and implicit extensions
 - `SchemaUtils` helpers for deriving, loading, and validating Spark schemas
 - separate `inputs` and `outputs` config for file-based IO definitions
@@ -31,7 +31,12 @@ The existing `DataFrameUtils` helpers remain available as a utility layer inside
 ```xml
 <dependency>
   <groupId>io.github.sparkplusplus</groupId>
-  <artifactId>sparkplusplus_2.12</artifactId>
+  <artifactId>sparkplusplus-core_2.12</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+</dependency>
+<dependency>
+  <groupId>io.github.sparkplusplus</groupId>
+  <artifactId>sparkplusplus-config_2.12</artifactId>
   <version>0.0.1-SNAPSHOT</version>
 </dependency>
 ```
@@ -47,7 +52,46 @@ Spark should usually be provided by your runtime environment:
 </dependency>
 ```
 
-## SparkETLApp Example
+## Recommended Framework Configuration
+
+New applications should use the strict `sparkplusplus.io/v1` envelope. It
+keeps application metadata, Spark settings, and dataset contracts in a stable,
+versioned file while decoding the `settings` section into your case class.
+
+```yaml
+apiVersion: sparkplusplus.io/v1
+application:
+  name: orders-job
+  version: 1.0.0
+  settings:
+    sourceSystem: orders
+sparkConfig:
+  spark.sql.session.timeZone: UTC
+inputs: []
+outputs: []
+```
+
+Extend `FrameworkSparkETLApp[OrdersSettings]` and implement
+`transform(ctx, settings, inputs)`. The framework emits a JSON run record with
+a run ID, configuration fingerprint, datasets, duration, Spark version, and
+failure category. Existing `SparkApp` and `SparkETLApp` configurations remain
+supported, but are not automatically converted to v1; migrate them explicitly
+and validate the resulting file before deployment.
+
+## CLI and Test Support
+
+Build the CLI with `mvn -pl sparkplusplus-cli -am package`, then run the
+assembled JAR with `java -jar ...-jar-with-dependencies.jar`. It supports:
+
+```bash
+java -jar sparkplusplus-cli/target/sparkplusplus-cli_2.12-0.0.1-SNAPSHOT-jar-with-dependencies.jar init orders-job --package example.orders --name orders-job
+java -jar sparkplusplus-cli/target/sparkplusplus-cli_2.12-0.0.1-SNAPSHOT-jar-with-dependencies.jar validate orders-job/conf/application.yaml
+```
+
+Use `sparkplusplus-testkit` for `LocalSparkSession.withSession` and generated
+project/config assertions in application tests.
+
+## Legacy SparkETLApp Example
 
 ```scala
 package example

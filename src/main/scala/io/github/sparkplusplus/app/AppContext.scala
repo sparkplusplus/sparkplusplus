@@ -5,7 +5,13 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.slf4j.Logger
 
-final case class AppContext[C](spark: SparkSession, config: C, args: Seq[String], logger: Logger) {
+final case class AppContext[C](
+  spark: SparkSession,
+  config: C,
+  args: Seq[String],
+  logger: Logger,
+  runRecord: Option[RunRecord] = None
+) {
 
   lazy val inputs: Map[String, InputDatasetConfig] =
     SparkApp.extractInputDatasets(config.asInstanceOf[AnyRef]).map(dataset => dataset.name -> dataset).toMap

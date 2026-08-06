@@ -18,6 +18,13 @@ object YamlConfigLoader {
   def load[C](path: Path, configClass: Class[C]): C = {
     require(configClass != null, "configClass must not be null")
 
+    decode(loadRaw(path), configClass)
+  }
+
+  def loadRaw(path: String): Map[String, Any] = loadRaw(Paths.get(path))
+
+  def loadRaw(path: Path): Map[String, Any] = {
+
     if (!Files.exists(path)) {
       throw new IllegalArgumentException(s"Config file does not exist: $path")
     }
@@ -32,14 +39,26 @@ object YamlConfigLoader {
       reader.close()
     }
 
-    decodeRoot(normalize(rootValue), configClass)
+    normalize(rootValue) match {
+      case map: Map[_, _] => map.asInstanceOf[Map[String, Any]]
+      case other => throw new IllegalArgumentException(s"Expected object at config but found ${describeValue(other)}")
+    }
+  }
+
+  def decode[C](value: Any, configClass: Class[C], location: String = "config"): C = {
+    require(configClass != null, "configClass must not be null")
+
+    val classSymbol = mirror.classSymbol(configClass)
+    decodeValue(value, classSymbol.toType, location).asInstanceOf[C]
+  }
+
+  def decodeSeq[C](value: Any, itemClass: Class[C], location: String): Seq[C] = value match {
+    case values: Seq[_] => values.map(item => decode(item, itemClass, location))
+    case other => throw new IllegalArgumentException(s"Expected sequence at $location but found ${describeValue(other)}")
   }
 
   private def decodeRoot[C](value: Any, configClass: Class[C]): C = {
-    val classSymbol = mirror.classSymbol(configClass)
-    val rootType = classSymbol.toType
-
-    decodeValue(value, rootType, "config").asInstanceOf[C]
+    decode(value, configClass)
   }
 
   private def normalize(value: Any): Any = value match {

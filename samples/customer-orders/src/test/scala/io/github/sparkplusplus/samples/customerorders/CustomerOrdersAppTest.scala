@@ -17,7 +17,13 @@ class CustomerOrdersAppTest extends AnyFunSuite {
     val ordersSchemaPath = projectPath("schemas/orders.json")
 
     val configContent =
-      s"""inputs:
+      s"""apiVersion: sparkplusplus.io/v1
+         |application:
+         |  name: customer-orders-test
+         |  version: 0.1.0
+         |  settings:
+         |    owner: analytics
+         |inputs:
          |  - name: customers
          |    path: $customersPath
          |    format: json

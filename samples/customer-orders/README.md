@@ -4,8 +4,8 @@ This sample is a standalone Scala + Maven SparkPlusPlus project that implements 
 
 ## What It Includes
 
-- `CustomerOrdersApp` built on `SparkETLApp`
-- YAML-driven `inputs`, `outputs`, and `sparkConfig`
+- `CustomerOrdersApp` built on `FrameworkSparkETLApp`
+- versioned YAML (`apiVersion: sparkplusplus.io/v1`) with typed application settings, `inputs`, `outputs`, and `sparkConfig`
 - JSON and CSV fixture inputs for local runs
 - schema files for deterministic parsing
 - a Spark-backed end-to-end test

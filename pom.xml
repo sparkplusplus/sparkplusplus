@@ -3,9 +3,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.github.sparkplusplus</groupId>
-  <artifactId>sparkplusplus_2.12</artifactId>
+  <artifactId>sparkplusplus-parent</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <packaging>jar</packaging>
+  <packaging>pom</packaging>
 
   <name>SparkPlusPlus</name>
   <description>SparkPlusPlus Framework Utility library for Apache Spark</description>
@@ -275,10 +275,20 @@
   </dependencies>
 
   <build>
-    <sourceDirectory>src/main/scala</sourceDirectory>
-    <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <sourceDirectory>src/none</sourceDirectory>
+    <testSourceDirectory>src/none</testSourceDirectory>
     <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+      </plugin>
       <!-- Scala Maven Plugin -->
       <plugin>
         <groupId>net.alchim31.maven</groupId>
@@ -307,6 +317,14 @@
         <configuration>
           <source>${maven.compiler.source}</source> <!-- or 11, 17, etc. -->
           <target>${maven.compiler.target}</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <skipTests>true</skipTests>
         </configuration>
       </plugin>
       <!-- ScalaTest Maven Plugin -->
@@ -341,4 +359,11 @@
     </plugin>
     </plugins>
   </build>
+
+  <modules>
+    <module>sparkplusplus-core</module>
+    <module>sparkplusplus-config</module>
+    <module>sparkplusplus-testkit</module>
+    <module>sparkplusplus-cli</module>
+  </modules>
 </project>

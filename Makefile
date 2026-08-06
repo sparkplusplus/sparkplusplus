@@ -22,35 +22,32 @@ snapshot:
 snapshot212:
 	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.12 -Dgpg.skip=false
 
-# Use a temporary artifactId switch for 2.13 publishing.
-# Central validates filenames against POM coordinates, so publish with a concrete 2.13 artifactId.
 snapshot213:
 	@set -e; \
-	cp pom.xml pom.xml.bak; \
-	trap 'mv pom.xml.bak pom.xml' EXIT INT TERM; \
-	sed 's|<artifactId>sparkplusplus_2.12</artifactId>|<artifactId>sparkplusplus_2.13</artifactId>|' pom.xml.bak > pom.xml; \
+	for pom in sparkplusplus-core/pom.xml sparkplusplus-config/pom.xml sparkplusplus-testkit/pom.xml sparkplusplus-cli/pom.xml; do cp $$pom $$pom.bak; sed 's|_2.12|_2.13|g' $$pom.bak > $$pom; done; \
+	trap 'for pom in sparkplusplus-core/pom.xml sparkplusplus-config/pom.xml sparkplusplus-testkit/pom.xml sparkplusplus-cli/pom.xml; do mv $$pom.bak $$pom; done' EXIT INT TERM; \
 	mvn deploy -Pgpg-key1 -PsonatypeDeploy -Pscala-2.13 -Dgpg.skip=false; \
-	mv pom.xml.bak pom.xml; \
+	for pom in sparkplusplus-core/pom.xml sparkplusplus-config/pom.xml sparkplusplus-testkit/pom.xml sparkplusplus-cli/pom.xml; do mv $$pom.bak $$pom; done; \
 	trap - EXIT INT TERM
 
 check: check212 check213
 
 # pass version like make check212 v=0.0.1
 check212:
-	@echo "Checking version sparkplusplus_2.12:$(v)-SNAPSHOT"
+	@echo "Checking version sparkplusplus-core_2.12:$(v)-SNAPSHOT"
 	@echo "================================================="
 	@sleep 2
 	mvn dependency:get \
 	  -DgroupId=io.github.sparkplusplus \
-	  -DartifactId=sparkplusplus_2.12 \
+	  -DartifactId=sparkplusplus-core_2.12 \
 	  -Dversion=$(v)-SNAPSHOT \
 	  -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/
 check213:
-	@echo "Checking version sparkplusplus_2.13:$(v)-SNAPSHOT"
+	@echo "Checking version sparkplusplus-core_2.13:$(v)-SNAPSHOT"
 	@echo "====================================================="
 	@sleep 2
 	mvn dependency:get \
 	  -DgroupId=io.github.sparkplusplus \
-	  -DartifactId=sparkplusplus_2.13 \
+	  -DartifactId=sparkplusplus-core_2.13 \
 	  -Dversion=$(v)-SNAPSHOT \
 	  -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/

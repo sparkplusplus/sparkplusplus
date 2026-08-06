@@ -1,3 +1,9 @@
+apiVersion: sparkplusplus.io/v1
+application:
+  name: customer-orders
+  version: 0.1.0
+  settings:
+    owner: analytics
 inputs:
   - name: customers
     path: src/test/resources/input/customers.json
